@@ -1,0 +1,1761 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Bintang Untukmu</title>
+<meta name="description" content="Sebuah langit kecil, dinyalakan satu per satu untukmu.">
+<!-- preview saat link dibagikan (WhatsApp, Instagram, dll).
+     Setelah halaman di-upload, ganti og:image dengan alamat LENGKAP (https://.../og-image.jpg), karena WhatsApp
+     tidak membaca alamat relatif. Boleh juga tambahkan: <meta property="og:url" content="https://alamat-halamanmu"> -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Bintang Untukmu">
+<meta property="og:description" content="Sebuah langit kecil, dinyalakan satu per satu untukmu.">
+<meta property="og:url" content="https://nuxras.github.io/untuk-laila/">
+<meta property="og:image" content="https://nuxras.github.io/untuk-laila/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Galaxy bintang berwarna lembut di langit gelap">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23000'/%3E%3Cpath d='M32 9c1.7 12.6 4.7 19.6 23 23-18.3 3.4-21.3 10.4-23 23-1.7-12.6-4.7-19.6-23-23 18.3-3.4 21.3-10.4 23-23z' fill='%23F6E2B3'/%3E%3Ccircle cx='49' cy='15' r='2' fill='%23FFD6E0'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- hanya font UI; font nama (CONFIG.nameFont) dimuat dari script, khusus huruf namanya saja -->
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#000; --ink:#f5f6fb; --muted:rgba(245,246,251,.46); --line:rgba(245,246,251,.16);
+    --sb:env(safe-area-inset-bottom,0px); --st:env(safe-area-inset-top,0px); }
+  html,body { margin:0; height:100%; height:100dvh; background:var(--bg); color:var(--ink); overflow:hidden;
+    overscroll-behavior:none; -webkit-tap-highlight-color:transparent; -webkit-text-size-adjust:100%;
+    font-family:Inter,system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  canvas { display:block; position:fixed; inset:0; touch-action:none; cursor:grab; }
+  canvas.dragging { cursor:grabbing; }
+  .word { position:fixed; top:50%; transform:translateY(-50%); margin:0; font-weight:400;
+    font-family:"Instrument Serif",Georgia,serif; font-size:clamp(44px,7vw,108px); line-height:1;
+    pointer-events:none; opacity:0; transition:opacity 2.4s ease; }
+  .word.l { left:5vw; } .word.r { right:5vw; font-style:italic; }
+  body.ready .word { opacity:1; }
+  /* tirai pembuka: satu kalimat + satu tombol, langit samar di belakangnya */
+  .veil { position:fixed; inset:0; z-index:5; display:grid; place-content:center; justify-items:center; gap:30px;
+    padding:24px; text-align:center; transition:opacity 1.2s ease; }
+  .veil.gone { opacity:0; pointer-events:none; }
+  .veil-text { margin:0; max-width:20ch; font-family:"Instrument Serif",Georgia,serif; font-style:italic; font-weight:400;
+    font-size:clamp(26px,3.6vw,42px); line-height:1.18; color:rgba(245,246,251,.88); opacity:0; animation:veilIn 2.6s ease .5s forwards; }
+  .veil-btn { font:500 13px/1 Inter,system-ui,sans-serif; letter-spacing:.06em; color:var(--ink);
+    background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:999px; padding:12px 26px; cursor:pointer;
+    opacity:0; animation:veilIn 1.8s ease 1.8s forwards; transition:background .3s ease, border-color .3s ease; touch-action:manipulation; }
+  .veil-btn:hover { background:rgba(255,255,255,.1); border-color:rgba(245,246,251,.42); }
+  .veil-btn:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+  @keyframes veilIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+  body:not(.started) .ctrl, body:not(.started) .hint { opacity:0; pointer-events:none; }
+  .msg { position:fixed; left:50%; bottom:calc(11vh + var(--sb)); transform:translate(-50%,8px); width:min(560px,calc(100% - 32px));
+    margin:0; text-align:center; font-family:"Instrument Serif",Georgia,serif; font-style:italic;
+    font-size:clamp(18px,2.1vw,25px); pointer-events:none; opacity:0; transition:opacity 1.6s ease, transform 1.6s ease; }
+  body.heart .msg { opacity:.88; transform:translate(-50%,0); transition-delay:1.4s; }
+  /* dua baris bertumpuk -> pesan berganti dengan cross-fade pelan */
+  .msg-line { position:absolute; left:0; right:0; bottom:0; opacity:0; transition:opacity 2.6s ease; }
+  .msg-line.on { opacity:1; }
+  /* tanda tangan di bawah nama, muncul setelah tulisan selesai */
+  .sig { position:fixed; left:50%; top:var(--sigY,72%); transform:translate(-50%,6px); margin:0; white-space:nowrap;
+    font-family:"Instrument Serif",Georgia,serif; font-style:italic; font-size:clamp(16px,1.6vw,21px); letter-spacing:.02em;
+    color:var(--name-accent,#FFC4D6); pointer-events:none; opacity:0; transition:opacity 2.4s ease, transform 2.4s ease; }
+  body.signed .sig { opacity:.72; transform:translate(-50%,0); transition-delay:.5s; }
+  .sig { transition:opacity 2.4s ease, transform 2.4s ease, color .9s ease; }
+  /* pemilih warna nama: titik-titik kecil, hanya di mode Nama */
+  .swatches { position:fixed; right:20px; bottom:calc(var(--sb) + 70px); display:flex; align-items:center;
+    opacity:0; transform:translateY(6px); pointer-events:none; transition:opacity 1s ease, transform 1s ease; }
+  body.name .swatches { opacity:1; transform:none; pointer-events:auto; transition-delay:1.2s; }
+  body.name .hint { opacity:0; }
+  .sw-label { margin-right:6px; font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted);
+    min-width:7.5em; text-align:right; }
+  .sw { position:relative; width:34px; height:34px; padding:0; border:0; border-radius:50%; background:none; cursor:pointer;
+    touch-action:manipulation; }
+  .sw::before { content:""; position:absolute; inset:11px; border-radius:50%;
+    background:radial-gradient(circle at 35% 32%, var(--b) 0 22%, var(--a) 72%);
+    box-shadow:0 0 0 1px rgba(255,255,255,.16); transition:inset .25s ease, box-shadow .25s ease; }
+  .sw:hover::before { inset:10px; }
+  .sw[aria-pressed="true"]::before { inset:10px; box-shadow:0 0 0 2px #07090e, 0 0 0 3px rgba(245,246,251,.75); }
+  .sw:focus-visible { outline:1px solid rgba(245,246,251,.6); outline-offset:-4px; }
+  /* bintang kenangan: halo tipis yang bernapas pelan; area sentuh 48px untuk jari */
+  .memories { position:fixed; inset:0; pointer-events:none; opacity:0; transition:opacity 1.2s ease; }
+  body.memvis .memories { opacity:1; }
+  .memstar { position:absolute; left:0; top:0; width:48px; height:48px; margin:-24px 0 0 -24px; padding:0; border:0;
+    background:none; border-radius:50%; cursor:pointer; touch-action:manipulation; pointer-events:none; will-change:transform; }
+  body.memvis .memstar { pointer-events:auto; }
+  .memstar::before { content:""; position:absolute; inset:12px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,244,224,0) 36%, rgba(255,244,224,.26) 52%, rgba(255,244,224,0) 72%);
+    animation:breathe 4.2s ease-in-out infinite; animation-delay:var(--d,0s); transition:inset .4s ease; }
+  .memstar:hover::before, .memstar.seen::before { inset:9px; }
+  .memstar:focus-visible { outline:1px solid rgba(255,244,224,.6); outline-offset:-10px; }
+  @keyframes breathe { 0%,100% { opacity:.45; transform:scale(.86); } 50% { opacity:.95; transform:scale(1.08); } }
+  .ripple { position:absolute; left:0; top:0; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%;
+    border:1px solid rgba(255,240,222,.55); box-shadow:0 0 14px rgba(255,226,196,.22), inset 0 0 8px rgba(255,226,196,.18);
+    animation:ripple 2.2s cubic-bezier(.16,.7,.24,1) forwards; pointer-events:none; }
+  @keyframes ripple { from { opacity:.95; transform:scale(.6); } to { opacity:0; transform:scale(7.5); } }
+  /* satu kenangan: tanggal kecil + kalimat, ala catatan kaki */
+  .mem { position:fixed; left:50%; bottom:calc(11vh + var(--sb)); transform:translate(-50%,8px); width:min(560px,calc(100% - 32px));
+    margin:0; text-align:center; pointer-events:none; opacity:0; transition:opacity 1.3s ease, transform 1.3s ease; }
+  .mem.on { opacity:1; transform:translate(-50%,0); }
+  .mem p { margin:0; }
+  .mem-meta { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+  .mem-idx { margin-left:.9em; opacity:.45; letter-spacing:.08em; }
+  .mem-text { margin-top:7px !important; font-family:"Instrument Serif",Georgia,serif; font-style:italic;
+    font-size:clamp(18px,2.1vw,25px); line-height:1.25; color:rgba(245,246,251,.9); }
+  body.memopen .hint { opacity:0; transition-duration:.3s; }
+  @media (prefers-reduced-motion:reduce) { .memstar::before { animation:none; opacity:.7; } .ripple { animation-duration:.01s; } }
+  body.heart .hint { opacity:0; }
+  body.ready.name .word { opacity:0; transition-duration:1s; }
+  /* keluar dari mode nama: teks pinggir menunggu tulisan bintangnya bubar dulu, baru muncul */
+  body.ready.unname .word { opacity:0; transition-duration:.6s; }
+  .hint { position:fixed; left:24px; bottom:calc(26px + var(--sb)); margin:0; font-size:12px; letter-spacing:.02em; color:var(--muted);
+    pointer-events:none; transition:opacity 1.2s ease; }
+  .hint-touch { display:none; }
+  @media (hover:none) and (pointer:coarse) { .hint-mouse { display:none; } .hint-touch { display:inline; } }
+  body.touched .hint, body.nohint .hint { opacity:0; }
+  .ctrl { position:fixed; right:20px; bottom:calc(20px + var(--sb)); display:flex; gap:8px; transition:opacity 1.6s ease 1.2s; }
+  #bSound { min-width:40px; }
+  .ctrl button { font:500 13px/1 Inter,system-ui,sans-serif; color:var(--ink); background:rgba(255,255,255,.05);
+    border:1px solid var(--line); border-radius:999px; padding:10px 14px; cursor:pointer; white-space:nowrap;
+    touch-action:manipulation;
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); transition:background .2s, border-color .2s; }
+  .ctrl button:hover { background:rgba(255,255,255,.12); }
+  .ctrl button[aria-pressed="true"] { border-color:rgba(245,246,251,.55); background:rgba(255,255,255,.13); }
+  .ctrl button:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+  .fallback { position:fixed; inset:0; display:grid; place-items:center; padding:24px; text-align:center; color:var(--muted); }
+  /* HP, dari bawah ke atas: tombol -> (pesan hati / petunjuk, maks 2 baris) -> "Laila" -> galaxy */
+  @media (max-width:700px) {
+    .word { top:calc(12% + var(--st)); transform:none; font-size:clamp(40px,13vw,64px); }
+    .word.l { left:16px; } .word.r { top:auto; bottom:max(21%, calc(var(--sb) + 150px)); right:16px; }
+    .msg { bottom:calc(var(--sb) + 68px); line-height:1.25; font-size:clamp(17px,4.6vw,21px); }
+    .mem { bottom:calc(var(--sb) + 68px); }
+    .swatches { left:0; right:0; justify-content:center; bottom:calc(var(--sb) + 60px); }
+    .sw-label { min-width:0; }
+    .mem-text { font-size:clamp(17px,4.6vw,21px); }
+    .hint { left:16px; right:16px; bottom:calc(var(--sb) + 68px); text-align:center; }
+    .ctrl { left:12px; right:12px; bottom:calc(var(--sb) + 14px); justify-content:center; flex-wrap:wrap; gap:6px; }
+    .ctrl button { padding:10px 13px; }
+  }
+  @media (max-width:380px) {
+    .ctrl { gap:5px; }
+    .ctrl button { padding:9px 10px; font-size:12px; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "postprocessing": "https://cdn.jsdelivr.net/npm/postprocessing@6.36.3/build/index.js"
+} }
+</script>
+</head>
+<body>
+<div class="veil" id="veil"><p class="veil-text" id="veilText"></p><button class="veil-btn" id="veilBtn" type="button"></button></div>
+<h1 class="word l" id="wl"></h1>
+<h1 class="word r" id="wr"></h1>
+<p class="msg" id="msg"><span class="msg-line on"></span><span class="msg-line"></span></p>
+<p class="sig" id="sig"></p>
+<div class="memories" id="memories" role="group" aria-label="Bintang kenangan"></div>
+<div class="mem" id="mem" role="status" aria-live="polite"><p class="mem-meta"><span class="mem-date"></span><span class="mem-idx"></span></p><p class="mem-text"></p></div>
+<p class="hint"><span class="hint-mouse">tahan &amp; geser ke segala arah untuk memutar · sapukan kursor untuk mengusik bintang</span><span class="hint-touch">geser dengan jari untuk memutar &amp; mengusik bintang · sentuh untuk melihat kilaunya</span></p>
+<div class="swatches" id="swatches" role="group" aria-label="Warna nama"><span class="sw-label" id="swLabel"></span></div>
+<div class="ctrl" role="group" aria-label="Bentuk">
+  <button id="bSpiral" aria-pressed="true">❀ Flower</button>
+  <button id="bHeart" aria-pressed="false">♥ Love</button>
+  <button id="bName" aria-pressed="false">✧ LAILA</button>
+  <button id="bReset" aria-label="Kembalikan posisi">↺</button>
+  <button id="bSound" aria-label="Matikan suara" aria-pressed="false" hidden>♪</button>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer, RenderPass, EffectPass, BloomEffect, NoiseEffect, VignetteEffect, BlendFunction } from 'postprocessing';
+
+/* ================= PERSONALISASI ================= */
+const CONFIG = {
+  // semua teks dikosongkan -> murni animasi. Isi lagi kapan saja kalau mau ada kata-kata.
+  leftWord:  '',
+  rightWord: '',
+  // pesan di mode Hati: berganti pelan (cross-fade) tiap heartMessageEvery detik
+  heartMessages: [],                    // contoh: ['setiap bintang di sini, aku nyalakan untukmu', '...']
+  heartMessageEvery: 6.5,
+  // pembuka: langit masih samar sampai tombol ditekan (sekaligus izin browser untuk memutar suara)
+  veil: { enabled: true, text: '', button: 'Nyalakan' },
+  // lagu (opsional): taruh file mp3 di folder yang sama lalu isi './lagu.mp3'.
+  audioSrc: '',
+  audioVolume: 0.8,                     // 0..1
+  chime: true,                          // denting lonceng lembut saat menyapu bintang & berganti bentuk
+  startShape: 'galaxy',                 // 'galaxy' (= bunga) | 'heart' | 'name'
+  nameText: 'Laila',                    // nama yang dibentuk bintang (huruf kecil lebih cantik di font script)
+  nameFont: 'Great Vibes',              // font tulisan tangan: 'Great Vibes' | 'Parisienne' | 'Allura'
+  nameSignature: '',
+  showHint: false,                      // petunjuk kecil "tahan & geser..." di bawah (true = tampilkan)   // muncul pelan di bawah nama setelah selesai ditulis ('' = tanpa)
+  // bintang kenangan dikosongkan -> 100% pure animasi tanpa teks
+  memories: [],
+  // tiap bentuk punya atmosfer sendiri
+  // bentuk pertama sekarang bunga (nama internalnya tetap 'galaxy' supaya pengaturan lain tidak berubah)
+  paletteGalaxy: ['#F7A8D0', '#FFD3E7', '#FFC4A0', '#BBA9FF', '#FFF6FA'],   // kelopak: pink, peach, lilac, putih
+  paletteHeart:  ['#FF7EA8', '#FFB3C9', '#FF9E6B', '#C58BFF', '#FFF1F5'],
+  // warna tulisan nama: bisa diganti langsung dari titik-titik warna di mode Nama (pilihan terakhir diingat).
+  // Tambah/ubah sesukamu: 5 warna per palet, yang pertama = warna utama (juga warna tanda tangan).
+  namePalette: 'Pearl Rose',            // palet awal
+  namePalettes: {
+    'Pearl Rose': ['#F26A9E', '#FF9EC2', '#D4457E', '#FFC4DA', '#FFF0F6'],
+    'Champagne':  ['#F6E2B3', '#FFD6E0', '#F3B98E', '#FFF4E0', '#FFFFFF'],
+    'Moonlight':  ['#C2DBFF', '#E4EDFF', '#9DC2F5', '#F3F7FF', '#FFFFFF'],
+    'Lavender':   ['#D4BCFF', '#ECDFFF', '#B79BF4', '#F7F1FF', '#FFFFFF'],
+    'Peach':      ['#FFC6A8', '#FFDFD0', '#FF9F86', '#FFF1E8', '#FFFFFF'],
+  },
+  density: 1,                           // 0.5 = lebih ringan, 1.5 = lebih padat
+  bloom: { intensity: 0.9, threshold: 0.22, smoothing: 0.25, radius: 0.75 },
+  // strength = seberapa jauh bintang terdorong · returnSpeed = makin kecil makin lambat balik
+  // curl = bintang "terbelah" ke kiri-kanan jalur kursor · jitter = variasi tiap bintang
+  // slowGain = kekuatan saat kursor lewat pelan (1 = sama dengan sapuan cepat; kecil = lewat pelan cuma mengusik)
+  cursor: { radiusPx: 110, strength: 4.0, maxSpeed: 0.4, impulseMax: 0.16, returnSpeed: 0.8, curl: 0.3, jitter: 0.35,
+            slowGain: 0.35 },
+};
+/* ================================================ */
+
+if (!CONFIG.showHint) document.body.classList.add('nohint');
+document.getElementById('wl').textContent = CONFIG.leftWord;
+document.getElementById('wr').textContent = CONFIG.rightWord;
+const msgLines = [...document.querySelectorAll('.msg-line')];
+msgLines[0].textContent = CONFIG.heartMessages[0] || '';
+document.getElementById('sig').textContent = CONFIG.nameSignature || '';
+document.getElementById('bName').textContent = '✧ ' + CONFIG.nameText;
+
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const PARAMS = new URLSearchParams(location.search), DEBUG = PARAMS.has('debug');
+const USE_VEIL = !!(CONFIG.veil && CONFIG.veil.enabled !== false);
+const small = Math.min(innerWidth, innerHeight) < 700;
+const Q = (small ? 0.6 : 1) * CONFIG.density;
+const DPR = Math.min(devicePixelRatio || 1, 2);
+const SAMPLES = 512;
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', stencil: false, depth: false });
+} catch (e) {
+  document.body.insertAdjacentHTML('beforeend', '<div class="fallback">Browser ini tidak mendukung WebGL.</div>');
+  throw e;
+}
+renderer.setPixelRatio(DPR);
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x000000, 1);
+document.body.prepend(renderer.domElement);
+const canvas = renderer.domElement;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 200);
+const TAN = Math.tan(THREE.MathUtils.degToRad(21));
+
+/* ---------- util ---------- */
+function rng(seed) {                    // mulberry32
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const smooth = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * (3 - 2 * t); };
+const ease = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * t * (t * (t * 6 - 15) + 10); };
+const fract = (x) => x - Math.floor(x);
+const DENSITY_FALLOFF = 0.22, SIZE_FALLOFF = 0.45;
+const warp = (ph) => ph + DENSITY_FALLOFF * Math.sin(ph * 6.283185307) / 6.283185307;
+
+/* ---------- shaders ---------- */
+const VERT = /* glsl */`
+#define PI 3.14159265359
+#define SAMPLES ${SAMPLES}.0
+uniform float uTime, uMorph, uNameMix, uWriteIn, uIntro, uPixelRatio, uIntensity, uTwinkleSpeed, uCamDist, uAspect;
+uniform float uBeatAmp, uDawn;        // kuat detak hati (ikut bass lagu) · langit samar di balik tirai pembuka
+uniform float uLensActive, uLensRadius, uLensMag, uLensIllum;
+uniform vec2 uLensPointer, uField;
+
+// atribut dipadatkan ke vec4/vec2 supaya muat di batas 16 atribut GPU
+attribute vec4 aStar;                  // seed, scale, bright, opacity
+attribute vec2 aTw;                    // fase & kecepatan kelip
+#define aSeed aStar.x
+#define aScale aStar.y
+#define aBright aStar.z
+#define aOpacity aStar.w
+#define aTwPhase aTw.x
+#define aTwRate aTw.y
+attribute vec3 aColorA, aColorB, aColorC;   // warna bunga, hati, nama
+attribute vec2 aMotion;
+
+#ifdef ARM
+attribute vec3 aArm;                   // orbit, across, depth
+#define aOrbit aArm.x
+#define aAcross aArm.y
+#define aDepth aArm.z
+uniform sampler2D uPathA;
+uniform float uFlow;
+#endif
+#if defined(ARM) || defined(CORE)
+attribute vec4 aHeart;                 // w > 0: bintang tepi mengalir (x=sudut, y=inset, z=depth, w=speed); w <= 0: isi bantal 3D
+attribute vec4 aName;                  // xyz = titik di huruf nama, w > 0.5 = debu aura sekitar huruf
+uniform vec2 uNameSpan;                // x kiri & lebar tulisan
+#endif
+#ifdef AMBIENT
+attribute vec3 aRand;
+#endif
+
+varying vec3 vColor;
+varying float vBright, vOpacity, vRay, vDiam;
+
+// kurva masuk-keluar yang lebih lembut dari smoothstep (turunan ke-2 juga nol di ujung)
+float ease(float e0, float e1, float x) {
+  float t = clamp((x - e0) / (e1 - e0), 0.0, 1.0);
+  return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+}
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+// transisi melengkung seperti pusaran pita 3D (bukan garis lurus kaku)
+vec3 swirlMix(vec3 a, vec3 b, float t, float seed, float zAmp, float spinAmp) {
+  float arc = sin(t * PI);
+  vec3 p = mix(a, b, t);
+  float ang = arc * spinAmp * (0.55 + 0.65 * fract(seed * 3.71));
+  float cs = cos(ang), sn = sin(ang);
+  p.xy = mat2(cs, sn, -sn, cs) * p.xy;
+  p.xy *= 1.0 + arc * 0.11;
+  p.z += arc * (seed - 0.5) * zAmp;
+  return p;
+}
+
+#ifdef ARM
+vec3 samplePath(sampler2D tex, float p) {
+  float s = clamp(p, 0.0, 1.0) * (SAMPLES - 1.0);
+  float i0 = floor(s), i1 = min(i0 + 1.0, SAMPLES - 1.0);
+  return mix(texture2D(tex, vec2((i0 + 0.5) / SAMPLES, 0.5)).xyz,
+             texture2D(tex, vec2((i1 + 0.5) / SAMPLES, 0.5)).xyz, fract(s));
+}
+vec3 pathPoint(sampler2D tex, float p, float across, float depth) {
+  float st = 1.0 / (SAMPLES - 1.0);
+  vec3 c = samplePath(tex, p);
+  vec3 t = samplePath(tex, min(p + st, 1.0)) - samplePath(tex, max(p - st, 0.0));
+  vec2 n = normalize(vec2(-t.y, t.x) + vec2(1e-6, 0.0));
+  return c + vec3(n * across, depth);
+}
+#endif
+
+#if defined(ARM) || defined(CORE)
+float nameK() { return clamp((aName.x - uNameSpan.x) / uNameSpan.y, 0.0, 1.0); }
+// tulisan muncul dari kiri ke kanan, dengan jendela terbang lebih panjang & lembut
+float writeProgress(float v, float seed) {
+  float st = nameK() * 0.46 + seed * 0.12;
+  return ease(st, st + 0.42, v);
+}
+// nama melayang seperti pita kaligrafi 3D + debu aura yang mengambang di sekitarnya
+vec3 namePoint(float seed) {
+  float nk = nameK();
+  float waveZ = sin(nk * 5.0 - uTime * 0.85) * 0.22 + cos(nk * 2.8 + uTime * 0.55) * 0.09;
+  float waveY = sin(nk * 4.2 - uTime * 0.72) * 0.055;
+  vec3 p = aName.xyz + vec3(0.0, waveY, waveZ);
+  float dust = step(0.5, aName.w);
+  vec3 micro = vec3(sin(uTime * 0.7 + seed * 40.0), cos(uTime * 0.55 + seed * 31.0), sin(uTime * 0.45 + seed * 19.0)) * 0.02;
+  vec3 aura = vec3(cos(uTime * 0.48 + seed * 29.0) * 0.13, sin(uTime * 0.42 + seed * 23.0) * 0.15, cos(uTime * 0.36 + seed * 17.0) * 0.14);
+  return p + mix(micro, aura, dust);
+}
+// kontur hati parametrik (sama persis dengan CPU) -> bintang tepi mengalir pelan mengelilingi garis hati
+vec2 heartContour(float u) {
+  float su = sin(u), cu = cos(u);
+  float c2 = 2.0 * cu * cu - 1.0, c3 = cu * (2.0 * c2 - 1.0), c4 = 2.0 * c2 * c2 - 1.0;
+  return vec2(16.0 * su * su * su, 13.0 * cu - 5.0 * c2 - 2.0 * c3 - c4 + 2.4) * 0.235;
+}
+// detak jantung ganda (lub-dub) bergelombang dari pusat ke tepi
+float heartBeatAt(float delay) {
+  float ph = fract(uTime * 0.72 - delay);
+  return exp(-pow((ph - 0.12) * 15.0, 2.0)) + 0.55 * exp(-pow((ph - 0.31) * 15.0, 2.0));
+}
+vec3 heartPoint(float seed, out float beatVal) {
+  vec3 base;
+  float isRim = step(0.001, aHeart.w);
+  if (isRim > 0.5) {
+    float u = aHeart.x + uTime * aHeart.w * 0.075;
+    vec2 xy = heartContour(u) * aHeart.y;
+    base = vec3(xy.x, xy.y + 0.1, aHeart.z);
+  } else {
+    base = aHeart.xyz;
+  }
+  float rDist = length(base.xy) * 0.26;
+  beatVal = heartBeatAt(rDist * 0.055);
+  vec3 drift = vec3(sin(uTime * 0.6 + seed * 23.0), cos(uTime * 0.5 + seed * 17.0), sin(uTime * 0.4 + seed * 11.0)) * mix(0.024, 0.012, isRim);
+  // debu bintang melayang halus hanya dari bagian dalam (garis tepi tetap simetris & tajam)
+  float ember = (1.0 - isRim) * smoothstep(0.935, 0.96, seed);
+  vec3 floatUp = vec3(sin(uTime * 0.45 + seed * 37.0) * 0.16, (fract(seed * 13.7 + uTime * 0.05) - 0.35) * 0.45, cos(uTime * 0.38 + seed * 29.0) * 0.14);
+  return base * (1.0 + uBeatAmp * beatVal) + drift + floatUp * ember;
+}
+#endif
+
+// bintang mulai dari posisi acak memenuhi layar, berputar, lalu ditarik ke tempatnya
+vec3 introMotion(vec3 target, vec3 scattered, float progress, float seed, float travel) {
+  if (progress >= 1.0) return target;
+  float start = 0.14 + seed * 0.18;
+  float local = clamp((progress - start) / (0.58 + travel * 0.1), 0.0, 1.0);
+  float s = local * local * local * (local * (local * 6.0 - 15.0) + 10.0);
+  float pull = mix(s, sin(s * PI * 0.5), 0.5);
+  float ang = sin(pull * PI) * (0.44 + seed * 0.22);
+  float c = cos(ang), n = sin(ang);
+  return mix(vec3(scattered.x * c - scattered.y * n, scattered.x * n + scattered.y * c, scattered.z), target, pull);
+}
+
+void main() {
+  float mOrg = ease(aSeed * 0.35, aSeed * 0.35 + 0.65, uMorph);
+  float m = mOrg;
+  float env = 1.0, endVis = 1.0, nameAmt = 0.0, shapeAmt = 0.0, flight = 0.0, hBeat = 0.0;
+  vec3 pos;
+
+#ifdef ARM
+  // bintang mengalir pelan di sepanjang kelopak (lebih rapat di tengah jalur)
+  float phase = fract(aOrbit + uFlow);
+  float p = phase + ${DENSITY_FALLOFF} * sin(phase * 2.0 * PI) / (2.0 * PI);
+  env = mix(1.0, 0.14 + 0.86 * pow(max(sin(clamp(p, 0.0, 1.0) * PI), 0.0), 0.68), ${SIZE_FALLOFF});
+  endVis = smoothstep(0.0, 0.055, p) * (1.0 - smoothstep(0.945, 1.0, p));
+  pos = pathPoint(uPathA, p, aAcross, aDepth);
+  m = mix(mOrg, writeProgress(uMorph, aSeed), uNameMix * uWriteIn);
+  if (uMorph > 0.0) {
+    vec3 posB = heartPoint(aSeed, hBeat);
+    float hn = 0.0;
+    if (uNameMix > 0.0) {             // hati <-> tulisan nama
+      float s2 = fract(aSeed * 7.13);
+      float hnOrg = ease(s2 * 0.35, s2 * 0.35 + 0.65, uNameMix);
+      hn = mix(hnOrg, writeProgress(uNameMix, s2), uWriteIn);
+      posB = swirlMix(posB, namePoint(aSeed), hn, s2, 1.6, 0.52);
+      nameAmt = hn;
+    }
+    pos = swirlMix(pos, posB, m, aSeed, 2.2, 0.68);
+    flight = max(sin(m * PI), sin(hn * PI) * m);
+    nameAmt *= m;
+    shapeAmt = m;
+  }
+  env = mix(env, 1.0, m);
+  endVis = mix(endVis, 1.0, m);
+#endif
+#ifdef CORE
+  // mode nama: bintang inti ikut mengisi tulisan (tidak ada gumpalan bulat tersisa)
+  m = mix(mOrg, writeProgress(uMorph, aSeed), uNameMix * uWriteIn);
+  float s2c = fract(aSeed * 7.13);
+  float hncOrg = ease(s2c * 0.35, s2c * 0.35 + 0.65, uNameMix);
+  float hnc = mix(hncOrg, writeProgress(uNameMix, s2c), uWriteIn);
+  vec3 posBC = swirlMix(heartPoint(aSeed, hBeat), namePoint(aSeed), hnc, s2c, 1.5, 0.52);
+  pos = swirlMix(position, posBC, m, aSeed, 1.5, 0.68);
+  flight = max(sin(m * PI), sin(hnc * PI) * m);
+  nameAmt = hnc * m;
+  shapeAmt = m;
+#endif
+#ifdef AMBIENT
+  // bintang langit: memenuhi seluruh layar, bergoyang pelan
+  float z = mix(-5.0, 1.8, aRand.z);
+  float k = (uCamDist - z) / uCamDist;
+  pos = vec3((aRand.xy - 0.5) * uField * k * 1.06, z);
+  vec2 ph = vec2(aRand.x * 6.2831 + aRand.y * 2.7, aRand.y * 6.2831 + aRand.z * 3.1);
+  float sp = mix(0.4, 0.8, aRand.z), am = mix(0.035, 0.12, aRand.z);
+  pos.xy += vec2(sin(ph.x + uTime * sp) - sin(ph.x), cos(ph.y + uTime * sp * 0.73) - cos(ph.y)) * am;
+  m = smoothstep(0.0, 1.0, uMorph);
+#endif
+
+  float sx = hash(vec2(aSeed, aTwPhase)), sy = hash(vec2(aTwPhase, aScale + 0.3)), sz = hash(vec2(aSeed * 7.3, aBright));
+  float reveal = smoothstep(sz * 0.015, 0.14 + sz * 0.015, uIntro) * mix(0.2, 1.0, smoothstep(0.2, 1.0, uIntro));
+#ifdef AMBIENT
+  reveal = max(reveal, 0.42 * uDawn);   // sebelum dinyalakan: hanya bintang langit yang samar bertebaran
+#endif
+#ifndef AMBIENT
+  vec3 scattered = vec3((sx - 0.5) * uField.x, (sy - 0.5) * uField.y, (sz - 0.5) * 0.5);
+  pos = introMotion(pos, scattered, uIntro, sz, sy);
+#endif
+
+  float tw = 0.86 + 0.14 * sin(aTwPhase + uTime * uTwinkleSpeed * aTwRate);
+  vBright = uIntensity * aBright * tw;
+  // mode nama: tanpa bintang raksasa (bloom-nya jadi bola-bola), cahaya menyapu tulisan pelan
+  // (berlaku juga untuk hati: tanpa gumpalan inti di tengah)
+  float scaleN = mix(aScale, min(aScale, mix(1.0, 0.9, nameAmt)), shapeAmt);
+#ifdef CORE
+  vBright *= mix(1.0, 0.55, shapeAmt);
+#endif
+  float sweepGlow = 0.0;
+#if defined(ARM) || defined(CORE)
+  vBright = mix(vBright, min(vBright, mix(1.7, 1.35, nameAmt)), shapeAmt);
+  float sweep = fract(uTime * 0.085) * 1.9 - 0.45;
+  sweepGlow = exp(-pow((nameK() - sweep) * 6.0, 2.0));
+  vBright *= 1.0 + nameAmt * 0.85 * sweepGlow;
+  // kilau lembut saat bintang terbang di tengah transisi & denyut hangat di puncak lub-dub hati
+  vBright *= 1.0 + flight * 0.28 + (shapeAmt * (1.0 - nameAmt)) * hBeat * 0.12;
+#endif
+  float cMix = nameAmt;
+#ifdef AMBIENT
+  cMix = m * uNameMix;                 // langit ikut menghangat di mode nama
+#endif
+  vColor = mix(mix(aColorA, aColorB, m), aColorC, cMix);
+  vOpacity = aOpacity * endVis * (0.92 + tw * 0.08) * smoothstep(0.0, 0.2, reveal);
+  // sisakan kilau berlian halus pada bintang terang di mode Hati & saat sapuan cahaya melewati Nama
+  float rayShape = mix(1.0, mix(0.28, 0.22 + 0.58 * sweepGlow, nameAmt), shapeAmt);
+  vRay = smoothstep(1.45, 2.8, aBright) * rayShape;
+
+  vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+  vec4 clip = projectionMatrix * mv;
+  float size = uPixelRatio * (0.35 + scaleN * env * endVis * 3.8) * (0.97 + tw * 0.03) * sqrt(reveal)
+             * mix(1.0, uCamDist / max(-mv.z, 0.1), 0.6)
+             * (1.0 + flight * 0.12 + nameAmt * 0.16 * sweepGlow);
+
+  float lens = 0.0;
+  if (uLensActive > 0.001) {
+    vec2 ndc = clip.xy / clip.w;
+    lens = (1.0 - smoothstep(0.0, uLensRadius, length((ndc - uLensPointer) * vec2(uAspect, 1.0)))) * uLensActive;
+    clip.xy = uLensPointer * clip.w + (clip.xy - uLensPointer * clip.w) * (1.0 + lens * uLensMag);
+  }
+  vBright *= 1.0 + lens * uLensIllum;
+  size *= 1.0 + lens * uLensMag * 0.7;
+
+  clip.xy += aMotion * clip.w;        // offset dari simulasi sapuan kursor
+  vDiam = size;
+  gl_PointSize = max(size, 4.0);
+  gl_Position = clip;
+}`;
+
+const FRAG = /* glsl */`
+varying vec3 vColor;
+varying float vBright, vOpacity, vRay, vDiam;
+// kernel B-spline kubik: titik sub-pixel digambar halus tanpa berkedip
+float bspline(float x) {
+  x = abs(x);
+  if (x < 1.0) return (4.0 - 6.0 * x * x + 3.0 * x * x * x) / 6.0;
+  float t = max(2.0 - x, 0.0);
+  return t * t * t / 6.0;
+}
+void main() {
+  vec2 px = (gl_PointCoord - 0.5) * max(vDiam, 4.0);
+  vec2 pt = px * 2.0 / max(vDiam, 1e-4);
+  float r = length(pt);
+  float core = pow(1.0 - smoothstep(0.08, 1.0, r), 2.2);
+  float rays = max(exp(-abs(pt.y) * 28.0) * (1.0 - smoothstep(0.18, 1.0, abs(pt.x))),
+                   exp(-abs(pt.x) * 28.0) * (1.0 - smoothstep(0.18, 1.0, abs(pt.y)))) * 0.28 * vRay;
+  float resolved = smoothstep(2.0, 4.0, vDiam);
+  // 0.150904 = energi profil disc (dihitung numerik) -> kecerahan sama di semua ukuran
+  float filtered = bspline(px.x) * bspline(px.y) * 0.150904 * vDiam * vDiam;
+  float alpha = mix(filtered, max(core, rays), resolved) * vOpacity;
+  if (alpha <= 0.0) discard;
+  float white = mix(0.59, core, resolved) * smoothstep(0.9, 2.8, vBright) * 0.82;
+  float energy = 1.0 - min(vColor.r, min(vColor.g, vColor.b));
+  vec3 em = mix(vColor, vec3(1.0), white) * vBright * (1.0 + energy * 0.42);
+  gl_FragColor = vec4(em * alpha, alpha * 0.85);
+}`;
+
+const shared = {
+  uTime: { value: 0 }, uMorph: { value: CONFIG.startShape === 'galaxy' ? 0 : 1 },
+  uNameMix: { value: CONFIG.startShape === 'name' ? 1 : 0 },
+  uWriteIn: { value: CONFIG.startShape === 'name' ? 1 : 0 },
+  uIntro: { value: reduceMotion && !USE_VEIL ? 1 : 0 },
+  uBeatAmp: { value: 0.032 }, uDawn: { value: 0 },
+  uPixelRatio: { value: DPR }, uIntensity: { value: 1.35 }, uTwinkleSpeed: { value: 0.62 },
+  uCamDist: { value: 15 }, uAspect: { value: innerWidth / innerHeight }, uField: { value: new THREE.Vector2(16, 10) },
+  uLensActive: { value: 0 }, uLensRadius: { value: 0.17 }, uLensMag: { value: 0.12 }, uLensIllum: { value: 0.45 },
+  uLensPointer: { value: new THREE.Vector2(9, 9) },
+};
+function makeMaterial(kind, extra = {}) {
+  return new THREE.ShaderMaterial({
+    defines: { [kind]: '' },
+    uniforms: { ...shared, ...extra },
+    vertexShader: VERT, fragmentShader: FRAG,
+    // premultiplied: bintang yang bertumpuk tidak menjumlah jadi pita putih
+    transparent: true, depthTest: false, depthWrite: false, premultipliedAlpha: true,
+    blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
+    blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
+  });
+}
+
+/* ---------- bentuk lengan ---------- */
+const ARMS = [
+  { theta: 0.0, turns: 1.25, rOut: 5.1, rIn: 0.30, depth: .62, flow: .025, strong: true,  weight: 1.25, hue: .08, hs: 1.00 },
+  { theta: 2.6, turns: 1.05, rOut: 3.9, rIn: 0.45, depth: -.46, flow: .018, strong: false, weight: .85, hue: .58, hs: .80 },
+  { theta: 1.3, turns: 1.45, rOut: 4.6, rIn: 0.28, depth: .78, flow: .021, strong: true,  weight: 1.25, hue: .22, hs: .62 },
+  { theta: 4.1, turns: 0.90, rOut: 3.1, rIn: 0.40, depth: -.70, flow: .016, strong: false, weight: .80, hue: .68, hs: .45 },
+  { theta: 5.3, turns: 1.30, rOut: 3.6, rIn: 0.22, depth: .42, flow: .030, strong: true,  weight: 1.10, hue: .44, hs: .30 },
+];
+const ROTATION_DEPTH = 1.4;
+
+function makeCurve(fn, closed) {
+  const pts = [], N = 400;
+  for (let i = 0; i < (closed ? N : N + 1); i++) pts.push(fn(i / N));
+  const c = new THREE.CatmullRomCurve3(pts, closed, 'centripetal');
+  c.arcLengthDivisions = 640;
+  return c;
+}
+/* ---------- bunga ----------
+   tiap lengan = satu kelopak. Jalurnya: tepi kelopak, lalu tepi kelopak yang lebih kecil, lalu yang lebih kecil lagi
+   (semuanya berawal & berakhir di tengah) -> bintang mengalir mengelilingi kelopak berlapis-lapis.
+   Ujung kelopak sedikit berlekuk seperti sakura, dan kelopak melengkung naik ke arah kamera (terlihat 3D saat diputar). */
+const FLOWER = { length: 4.6, width: 2.05, notch: 0.55, cup: 1.25, loops: [1, 0.68, 0.38] };   // panjang, lebar, lekuk ujung, lengkung 3D, lapisan kelopak
+const petalPoint = (k, sc, th) => {
+  const L = FLOWER.length * sc, half = (1 - Math.cos(th)) / 2;
+  let u = L * half;
+  const v = FLOWER.width * sc * Math.sin(th) * Math.pow(half, 0.55);
+  u -= FLOWER.notch * sc * Math.exp(-(((th - Math.PI) / 0.3) ** 2));               // lekuk di ujung kelopak
+  const ang = Math.PI / 2 + k * Math.PI * 2 / ARMS.length;
+  const r = u / FLOWER.length;
+  return new THREE.Vector3(u * Math.cos(ang) - v * Math.sin(ang), u * Math.sin(ang) + v * Math.cos(ang),
+    FLOWER.cup * r * r + 0.12 * Math.sin(th * 2 + k));
+};
+const flowerCurve = (A, k) => {
+  const pts = [], N = 150;
+  FLOWER.loops.forEach((sc, li) => {
+    for (let i = li ? 1 : 0; i <= N; i++) pts.push(petalPoint(k, sc, i / N * Math.PI * 2));
+  });
+  const c = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+  c.arcLengthDivisions = 1400;
+  return c;
+};
+function pathData(curve) {
+  const S = new Float32Array(SAMPLES * 4), v = new THREE.Vector3();
+  for (let i = 0; i < SAMPLES; i++) {
+    curve.getPointAt(i / (SAMPLES - 1), v);
+    S[i * 4] = v.x; S[i * 4 + 1] = v.y; S[i * 4 + 2] = v.z; S[i * 4 + 3] = 1;
+  }
+  const tex = new THREE.DataTexture(S, SAMPLES, 1, THREE.RGBAFormat, THREE.FloatType);
+  tex.magFilter = tex.minFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false; tex.needsUpdate = true;
+  return { S, tex };
+}
+/* ---------- tulisan nama dari font sungguhan ----------
+   nama digambar ke canvas tersembunyi, lalu tiap bintang diberi satu titik acak di dalam goresan hurufnya */
+const NAME_W = 9.6, NAME_H = 4.4;
+const nameSpan = new THREE.Vector2(-NAME_W / 2, NAME_W);
+let nameBottomY = -NAME_H / 2, sigDirty = true;   // batas bawah tulisan (untuk menaruh tanda tangan)
+function sampleNameMask(fontFamily) {
+  const fs = 240, text = CONFIG.nameText;
+  const cv = document.createElement('canvas'), ctx = cv.getContext('2d', { willReadFrequently: true });
+  cv.width = Math.ceil(fs * (text.length * 0.9 + 1.6)); cv.height = Math.ceil(fs * 2.2);
+  ctx.font = `${fs}px ${fontFamily}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = ctx.strokeStyle = '#fff';
+  ctx.lineWidth = fs * 0.014; ctx.lineJoin = 'round';     // sedikit dipertebal supaya goresan tipis tetap terisi bintang
+  ctx.fillText(text, cv.width / 2, cv.height / 2);
+  ctx.strokeText(text, cv.width / 2, cv.height / 2);
+  const d = ctx.getImageData(0, 0, cv.width, cv.height).data, px = [];
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (let y = 0; y < cv.height; y += 1) for (let x = 0; x < cv.width; x += 1) {
+    if (d[(y * cv.width + x) * 4 + 3] > 150) {
+      px.push(x, y);
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+  }
+  if (!px.length) return null;
+  const s = Math.min(NAME_W / (x1 - x0 + 1), NAME_H / (y1 - y0 + 1)), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const pts = new Float32Array(px.length);
+  for (let i = 0; i < px.length; i += 2) { pts[i] = (px[i] - cx) * s; pts[i + 1] = -(px[i + 1] - cy) * s + 0.1; }
+  nameSpan.set(-(x1 - x0) * s / 2, (x1 - x0) * s);
+  nameBottomY = -(y1 - y0 + 1) * s / 2 + 0.1;
+  return { pts, count: px.length / 2, cell: s };
+}
+const nameLayers = [];   // layer yang ikut membentuk nama (lengan + inti)
+function fillNameTargets(mask) {
+  nameLayers.forEach((L, li) => {
+    const R = rng(0x6a09e667 ^ Math.imul(li + 1, 0x85ebca6b)), a = L.aName;
+    for (let i = 0; i < L.n; i++) {
+      const j = Math.floor(R() * mask.count) * 2;
+      let x = mask.pts[j] + (R() - .5) * mask.cell, y = mask.pts[j + 1] + (R() - .5) * mask.cell;
+      const dust = R() < 0.055;
+      if (dust) { x += (R() + R() - 1) * 0.42; y += (R() + R() - 1) * 0.42; }   // debu aura melayang di sekitar tulisan
+      a[i * 4] = x; a[i * 4 + 1] = y;
+      a[i * 4 + 2] = (R() - .5) * 0.16 + Math.sin(x * 0.55) * 0.12;
+      a[i * 4 + 3] = dust ? 1 : 0;
+    }
+    L.points.geometry.attributes.aName.needsUpdate = true;
+  });
+}
+/* ---------- hati 3D ----------
+   separuh bintang membentuk garis tepi yang bercahaya, separuh lagi mengisi bagian dalam
+   seperti bantal (paling tebal di tengah, menipis ke tepi) -> tetap terlihat hati saat diputar */
+const HEART_S = 0.235;
+const heartXY = (u) => [16 * Math.sin(u) ** 3 * HEART_S,
+  (13 * Math.cos(u) - 5 * Math.cos(2 * u) - 2 * Math.cos(3 * u) - Math.cos(4 * u) + 2.4) * HEART_S];
+/* grid 128x128 dihitung sekali: sel mana yang di dalam hati (scanline) dan jaraknya ke tepi
+   (distance transform chamfer 2 lintasan). Tiap bintang cukup memilih sel acak, tanpa uji polygon.
+   Ditulis "datar" (tanpa closure/sort/array dinamis) supaya tetap cepat walau JIT belum panas saat startup */
+const HEART_GRID = 128, HB = { x0: -3.9, x1: 3.9, y0: -3.7, y1: 3.7 };
+function heartGrid() {
+  const N = HEART_GRID, cw = (HB.x1 - HB.x0) / N, ch = (HB.y1 - HB.y0) / N, V = 180;
+  const px = new Float32Array(V), py = new Float32Array(V);
+  for (let i = 0; i < V; i++) { const [x, y] = heartXY(i / V * Math.PI * 2); px[i] = x; py[i] = y; }
+  const dist = new Float32Array(N * N), cells = new Int32Array(N * N), xs = new Float32Array(16);
+  let nc = 0;
+  for (let r = 1; r < N - 1; r++) {                          // baris/kolom tepi grid selalu di luar hati
+    const y = HB.y0 + (r + .5) * ch;
+    let m = 0;
+    for (let i = 0, j = V - 1; i < V; j = i++) {
+      const yi = py[i], yj = py[j];
+      if ((yi > y) !== (yj > y) && m < 16) {
+        let v = px[i] + (px[j] - px[i]) * (y - yi) / (yj - yi), k = m++;
+        while (k > 0 && xs[k - 1] > v) { xs[k] = xs[k - 1]; k--; }   // insertion sort (maks 4 titik potong)
+        xs[k] = v;
+      }
+    }
+    for (let k = 0; k + 1 < m; k += 2) {
+      const c0 = Math.max(1, Math.ceil((xs[k] - HB.x0) / cw - .5)), c1 = Math.min(N - 2, Math.floor((xs[k + 1] - HB.x0) / cw - .5));
+      for (let c = c0; c <= c1; c++) { dist[r * N + c] = 1e9; cells[nc++] = r * N + c; }
+    }
+  }
+  // chamfer: sel luar = 0, sel dalam = jarak ke sel luar terdekat
+  const dg = Math.hypot(cw, ch);
+  for (let r = 1; r < N - 1; r++) for (let c = 1; c < N - 1; c++) {
+    const i = r * N + c;
+    let d = dist[i]; if (d === 0) continue;
+    let v = dist[i - 1] + cw; if (v < d) d = v;
+    v = dist[i - N] + ch; if (v < d) d = v;
+    v = dist[i - N - 1] + dg; if (v < d) d = v;
+    v = dist[i - N + 1] + dg; if (v < d) d = v;
+    dist[i] = d;
+  }
+  for (let r = N - 2; r > 0; r--) for (let c = N - 2; c > 0; c--) {
+    const i = r * N + c;
+    let d = dist[i]; if (d === 0) continue;
+    let v = dist[i + 1] + cw; if (v < d) d = v;
+    v = dist[i + N] + ch; if (v < d) d = v;
+    v = dist[i + N + 1] + dg; if (v < d) d = v;
+    v = dist[i + N - 1] + dg; if (v < d) d = v;
+    dist[i] = d;
+  }
+  const half = Math.min(cw, ch) * .5;
+  for (let k = 0; k < nc; k++) { const i = cells[k]; dist[i] = Math.max(dist[i] - half, 0); }   // pusat sel -> garis tepi
+  return { N, cw, ch, dist, cells: cells.subarray(0, nc) };
+}
+function buildHeart() {
+  const G = heartGrid();
+  nameLayers.forEach((L, li) => {
+    const R = rng(0x3c6ef372 ^ Math.imul(li + 1, 0xc2b2ae35)), a = L.aHeart;
+    for (let i = 0; i < L.n; i++) {
+      const k4 = i * 4;
+      if (R() < 0.5) {                       // garis tepi: mengalir pelan mengelilingi kontur hati di shader
+        a[k4] = R() * Math.PI * 2;           // sudut awal u pada kontur
+        a[k4 + 1] = 1 - Math.abs(R() + R() - 1) * 0.11;   // faktor masuk sedikit ke dalam
+        a[k4 + 2] = (R() - .5) * 0.3;        // ketebalan z
+        a[k4 + 3] = 0.72 + R() * 0.56;       // >0 menandakan bintang tepi + variasi laju aliran
+      } else {                               // isi: makin ke tengah makin tebal (bantal 3D)
+        const cell = G.cells[Math.floor(R() * G.cells.length)], r = Math.floor(cell / G.N), c = cell - r * G.N;
+        const x = HB.x0 + (c + R()) * G.cw, y = HB.y0 + (r + R()) * G.ch;
+        const e = Math.min(G.dist[cell] / 1.7, 1);
+        a[k4] = x; a[k4 + 1] = y + 0.1; a[k4 + 2] = (R() * 2 - 1) * 1.05 * Math.sqrt(e); a[k4 + 3] = 0;
+      }
+    }
+    L.points.geometry.attributes.aHeart.needsUpdate = true;
+  });
+}
+function buildName() {
+  const mask = sampleNameMask(`"${CONFIG.nameFont}", "Snell Roundhand", "Segoe Script", "Brush Script MT", cursive`);
+  if (mask) { fillNameTargets(mask); sigDirty = true; }
+}
+
+// versi CPU dari pathPoint() di shader -> dipakai simulasi kursor
+const _a = [0, 0, 0], _b = [0, 0, 0], _c = [0, 0, 0], _d = [0, 0, 0];
+function sampleCPU(S, p, o) {
+  const s = Math.min(Math.max(p, 0), 1) * (SAMPLES - 1), i0 = Math.floor(s), i1 = Math.min(i0 + 1, SAMPLES - 1), f = s - i0;
+  for (let j = 0; j < 3; j++) o[j] = S[i0 * 4 + j] + (S[i1 * 4 + j] - S[i0 * 4 + j]) * f;
+}
+function pathPointCPU(S, p, across, depth, out) {
+  const st = 1 / (SAMPLES - 1);
+  sampleCPU(S, p, out); sampleCPU(S, Math.min(p + st, 1), _a); sampleCPU(S, Math.max(p - st, 0), _b);
+  let nx = -(_a[1] - _b[1]) + 1e-6, ny = _a[0] - _b[0];
+  const l = Math.hypot(nx, ny) || 1;
+  out[0] += nx / l * across; out[1] += ny / l * across; out[2] += depth;
+}
+
+const colA = CONFIG.paletteGalaxy.map((c) => new THREE.Color(c));
+const colB = CONFIG.paletteHeart.map((c) => new THREE.Color(c));
+const NAME_PAL_KEYS = Object.keys(CONFIG.namePalettes);
+const PAL_STORE = 'bintang.namePalette';
+let namePalKey = (() => { try { return localStorage.getItem(PAL_STORE); } catch (_) { return null; } })();
+if (!CONFIG.namePalettes[namePalKey]) namePalKey = CONFIG.namePalettes[CONFIG.namePalette] ? CONFIG.namePalette : NAME_PAL_KEYS[0];
+const colC = CONFIG.namePalettes[namePalKey].map((c) => new THREE.Color(c));
+const pickIdx = (v) => v < .36 ? 0 : v < .52 ? 1 : v < .64 ? 2 : v < .74 ? 3 : 4;
+const pick = (pal, v) => pal[pickIdx(v)];
+
+/* ---------- layer partikel ---------- */
+function makeGeometry(count, fields) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(fields.position || new Float32Array(count * 3), 3));
+  for (const [name, [arr, n]] of Object.entries(fields.attrs)) g.setAttribute(name, new THREE.BufferAttribute(arr, n));
+  const motion = new Float32Array(count * 2);
+  const motionAttr = new THREE.BufferAttribute(motion, 2).setUsage(THREE.DynamicDrawUsage);
+  g.setAttribute('aMotion', motionAttr);
+  return { g, motion, motionAttr };
+}
+function commonArrays(n) {
+  const f = (k) => new Float32Array(n * k);
+  return { aSeed: f(1), aScale: f(1), aBright: f(1), aOpacity: f(1), aTwPhase: f(1), aTwRate: f(1), aColorA: f(3), aColorB: f(3), aColorC: f(3), cIdx: new Uint8Array(n), mass: f(1) };
+}
+function finishLayer(kind, n, C, extraAttrs, material, position) {
+  const aStar = new Float32Array(n * 4), aTw = new Float32Array(n * 2);
+  for (let i = 0; i < n; i++) {
+    aStar[i * 4] = C.aSeed[i]; aStar[i * 4 + 1] = C.aScale[i]; aStar[i * 4 + 2] = C.aBright[i]; aStar[i * 4 + 3] = C.aOpacity[i];
+    aTw[i * 2] = C.aTwPhase[i]; aTw[i * 2 + 1] = C.aTwRate[i];
+  }
+  const attrs = { aStar: [aStar, 4], aTw: [aTw, 2], aColorA: [C.aColorA, 3], aColorB: [C.aColorB, 3], aColorC: [C.aColorC, 3], ...extraAttrs };
+  const { g, motion, motionAttr } = makeGeometry(n, { attrs, position });
+  const points = new THREE.Points(g, material);
+  points.frustumCulled = false;
+  const drag = new Float32Array(n), vary = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    drag[i] = 2.3 / Math.sqrt(C.mass[i]);                       // bintang besar = lebih berat
+    vary[i] = 1 + CONFIG.cursor.jitter * (fract(Math.sin(i * 12.9898 + n) * 43758.5453) * 2 - 1);
+  }
+  return { kind, n, C, points, mat: material, motion, motionAttr, vel: new Float32Array(n * 2), drag, vary,
+           q: new THREE.Quaternion(), lag: 0, awake: false };
+}
+const massOf = (sizePx) => THREE.MathUtils.lerp(0.65, 2.4, smooth(1, 14, sizePx));
+
+const layers = [];      // semua layer (dipakai simulasi kursor)
+const spinners = [];    // layer yang ikut diputar drag
+
+ARMS.forEach((A, k) => {
+  const pa = pathData(flowerCurve(A, k));
+  const n = Math.round(1900 * 1.05 * Q);           // tiap kelopak sama padat
+  const R = rng(0x243f6a88 ^ Math.imul(k + 1, 0x9e3779b9)), E = rng(0xa4093822 ^ Math.imul(k + 1, 0x299f31d0));
+  const C = commonArrays(n), aOrbit = new Float32Array(n), aAcross = new Float32Array(n), aDepth = new Float32Array(n);
+  let best = -1, bestI = 0;
+  for (let i = 0; i < n; i++) {
+    const t = R(), l = Math.pow(Math.sin(t * Math.PI), 0.68);
+    const u = 0.3 * THREE.MathUtils.lerp(0.3, 1, l) * (0.22 + 0.78 * R());
+    aOrbit[i] = t;
+    aAcross[i] = (R() + R() - 1) * u;
+    aDepth[i] = (R() + R() - 1) * u * 0.65;
+    // kelopak: lebih sedikit bintang putih besar, supaya warna kelopak yang terlihat
+    const heroChance = THREE.MathUtils.lerp(.045 * .22, .045, l);
+    const hero = R() < heroChance;
+    const scale = (hero ? .85 + 1.25 * R() : .12 + R() ** 2.4 * .68) * 2.05;
+    C.aScale[i] = scale;
+    // bintang biasa redup & berwarna; hanya "hero" yang putih terang dan ber-glow
+    C.aBright[i] = hero ? 1.7 + 1.1 * R() : .42 + .52 * R();
+    C.aOpacity[i] = .82 + .16 * R();
+    C.aSeed[i] = R(); C.aTwPhase[i] = R() * Math.PI * 2; C.aTwRate[i] = .65 + .7 * R();
+    const v = E();
+    pick(colA, v).toArray(C.aColorA, i * 3); pick(colB, v).toArray(C.aColorB, i * 3); pick(colC, v).toArray(C.aColorC, i * 3); C.cIdx[i] = pickIdx(v);
+    C.mass[i] = massOf(0.35 + scale * 3.8);
+    if (scale > best) { best = scale; bestI = i; }
+  }
+  // satu bintang paling terang per lengan (seperti "flare" di aslinya)
+  C.aScale[bestI] = Math.max(C.aScale[bestI], 2.2 * 2.05);
+  C.aBright[bestI] = Math.max(C.aBright[bestI], 3.1);
+  pick(colA, A.hue).toArray(C.aColorA, bestI * 3);
+
+  const mat = makeMaterial('ARM', { uPathA: { value: pa.tex }, uFlow: { value: R() }, uNameSpan: { value: nameSpan } });
+  const aName = new Float32Array(n * 4), aHeart = new Float32Array(n * 4);
+  const aArm = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { aArm[i * 3] = aOrbit[i]; aArm[i * 3 + 1] = aAcross[i]; aArm[i * 3 + 2] = aDepth[i]; }
+  const L = finishLayer('ARM', n, C, { aArm: [aArm, 3], aName: [aName, 4], aHeart: [aHeart, 4] }, mat);
+  Object.assign(L, { SA: pa.S, aOrbit, aAcross, aDepth, aName, aHeart, A, bestI, lag: .18 + .17 * k });
+  scene.add(L.points);
+  layers.push(L); spinners.push(L); nameLayers.push(L);
+});
+
+// gugus inti: banyak bintang terang yang menumpuk -> cahaya tengah dari bloom, bukan sprite besar
+const PISTIL = new THREE.Color('#FFD29A');
+{
+  const n = Math.round(1000 * Q), R = rng(0xb7e15162), G = rng(0xc0ac29b7);
+  const C = commonArrays(n), pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const r = R() ** 1.8 * 0.6, ang = R() * Math.PI * 2, w = 1 - r / 0.6;
+    pos[i * 3] = Math.cos(ang) * r; pos[i * 3 + 1] = Math.sin(ang) * r * 0.8; pos[i * 3 + 2] = (R() - .5) * .2;
+    C.aBright[i] = 1.0 + 2.6 * w * w + .4 * R();
+    const v = w > .74 ? .99 : G();
+    pick(colA, v).toArray(C.aColorA, i * 3); pick(colB, v).toArray(C.aColorB, i * 3); pick(colC, v).toArray(C.aColorC, i * 3); C.cIdx[i] = pickIdx(v);
+    if (w > .55) PISTIL.toArray(C.aColorA, i * 3);       // putik bunga: emas hangat
+    C.aOpacity[i] = .62 + .38 * w;
+    C.aScale[i] = (.28 + 1.45 * w + .45 * R()) * 2.05 * .8;
+    C.aSeed[i] = R(); C.aTwPhase[i] = R() * Math.PI * 2; C.aTwRate[i] = .55 + .45 * R();
+    C.mass[i] = massOf(0.35 + C.aScale[i] * 3.8);
+  }
+  const coreMat = makeMaterial('CORE', { uIntensity: { value: 1.35 * 1.22 }, uNameSpan: { value: nameSpan } });
+  coreMat.blendDst = THREE.OneFactor;            // inti: cahaya boleh menumpuk -> glow putih lembut
+  const aName = new Float32Array(n * 4), aHeart = new Float32Array(n * 4);
+  const L = finishLayer('CORE', n, C, { aName: [aName, 4], aHeart: [aHeart, 4] }, coreMat, pos);
+  Object.assign(L, { aName, aHeart });
+  scene.add(L.points);
+  layers.push(L); spinners.push(L); nameLayers.push(L);
+}
+// hati baru dibutuhkan saat morph -> dibangun saat browser idle setelah galaxy tampil
+// (atau langsung kalau halaman mulai dari hati/nama, atau tombolnya diklik lebih dulu)
+let heartReady = false, heartMs = 0;
+function ensureHeart() {
+  if (heartReady) return;
+  heartReady = true;
+  const t0 = performance.now();
+  buildHeart();
+  heartMs = performance.now() - t0;
+}
+if (CONFIG.startShape !== 'galaxy') ensureHeart();
+else (window.requestIdleCallback || ((f) => setTimeout(f, 400)))(ensureHeart, { timeout: 1500 });
+// isi dulu dengan font cadangan, lalu ulangi begitu font tulisan tangan selesai dimuat.
+// font nama dimuat dari sini (bukan dari <head>) dan hanya huruf yang dipakai -> unduhan kecil
+{
+  const fl = document.createElement('link');
+  fl.rel = 'stylesheet';
+  fl.href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(CONFIG.nameFont).replace(/%20/g, '+')
+    + '&text=' + encodeURIComponent(CONFIG.nameText) + '&display=swap';
+  fl.onload = () => document.fonts?.load(`240px "${CONFIG.nameFont}"`, CONFIG.nameText)
+    .then((f) => { if (f.length) buildName(); }).catch(() => {});
+  document.head.append(fl);
+}
+buildName();
+
+// bintang langit di seluruh layar (ikut kena sapuan kursor)
+let ambient;
+{
+  const n = Math.round(1400 * Q), R = rng(0x51ed270b);
+  const C = commonArrays(n), aRand = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    aRand[i * 3] = R(); aRand[i * 3 + 1] = R(); aRand[i * 3 + 2] = R();
+    const hero = R() < .02;
+    C.aScale[i] = (hero ? .45 + .6 * R() : .06 + R() ** 2.6 * .4) * 2.05;
+    C.aBright[i] = hero ? 1.0 + .7 * R() : .22 + .38 * R();
+    C.aOpacity[i] = .35 + .45 * R();
+    C.aSeed[i] = R(); C.aTwPhase[i] = R() * Math.PI * 2; C.aTwRate[i] = .4 + 1.2 * R();
+    const v = R();
+    new THREE.Color(1, 1, 1).lerp(pick(colA, v), .55).toArray(C.aColorA, i * 3);
+    new THREE.Color(1, 1, 1).lerp(pick(colB, v), .55).toArray(C.aColorB, i * 3);
+    new THREE.Color(1, 1, 1).lerp(pick(colC, v), .55).toArray(C.aColorC, i * 3); C.cIdx[i] = pickIdx(v);
+    C.mass[i] = massOf(0.35 + C.aScale[i] * 3.8);
+  }
+  ambient = finishLayer('AMBIENT', n, C, { aRand: [aRand, 3] }, makeMaterial('AMBIENT', { uLensActive: { value: 0 } }));
+  ambient.aRand = aRand;
+  scene.add(ambient.points);
+  layers.push(ambient);
+}
+
+// latar: langit malam obsidian pekat, tanpa kabut berlebih — tepi bergeser tipis mengikuti mood
+const bgMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uCenter: { value: new THREE.Color('#010205') },
+    uEdge: { value: new THREE.Color('#0f0c1a') },
+    uAspect: shared.uAspect,
+  },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+  fragmentShader: `uniform vec3 uCenter, uEdge; uniform float uAspect; varying vec2 vUv;
+    void main(){
+      vec2 p = (vUv - 0.5) * vec2(uAspect, 1.0);
+      float d = smoothstep(0.18, 0.98, length(p) / max(uAspect * 0.5, 0.5) * 1.12);
+      gl_FragColor = vec4(mix(uCenter, uEdge, d), 1.0);
+    }`,
+  depthTest: false, depthWrite: false,
+});
+{
+  const bg = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat);
+  bg.frustumCulled = false; bg.renderOrder = -1;
+  scene.add(bg);
+}
+
+/* ---------- post-processing: bloom mipmap + grain + vignette ---------- */
+// half-float dipakai kalau GPU benar-benar bisa merender ke sana (dan memfilternya linear);
+// GPU HP lama yang tidak bisa -> 8-bit, supaya tidak layar hitam
+function halfFloatRenderable() {
+  const gl = renderer.getContext();
+  if (!renderer.capabilities.isWebGL2 && !renderer.extensions.has('OES_texture_half_float_linear')) return false;
+  let rt;
+  try {
+    rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
+    renderer.setRenderTarget(rt);
+    return gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+  } catch (e) {
+    return false;
+  } finally {
+    renderer.setRenderTarget(null);
+    rt?.dispose();
+  }
+}
+const frameBufferType = halfFloatRenderable() ? THREE.HalfFloatType : THREE.UnsignedByteType;
+const composer = new EffectComposer(renderer, { frameBufferType });
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new BloomEffect({
+  blendFunction: BlendFunction.ADD, mipmapBlur: true, levels: 5,
+  intensity: CONFIG.bloom.intensity, luminanceThreshold: CONFIG.bloom.threshold,
+  luminanceSmoothing: CONFIG.bloom.smoothing, radius: CONFIG.bloom.radius,
+});
+const grain = new NoiseEffect({ blendFunction: BlendFunction.SCREEN, premultiply: true });
+grain.blendMode.opacity.value = 0.035;
+const vignette = new VignetteEffect({ offset: 0.3, darkness: 0.5 });
+composer.addPass(new EffectPass(camera, bloom, grain, vignette));
+
+let baseCamZ = 15, camBreath = 0;
+function resize() {
+  const w = innerWidth, h = innerHeight, aspect = w / h;
+  camera.aspect = aspect;
+  // bunga kira-kira 72% tinggi layar; di layar potret, muat ke lebar
+  const z = Math.max(10.4 / (1.0 * 2 * TAN), 10.4 / (0.96 * 2 * TAN * aspect));
+  baseCamZ = Math.min(z, 34);
+  camera.position.set(0, 0, baseCamZ * (1 + 0.055 * camBreath));
+  camera.updateProjectionMatrix();
+  shared.uCamDist.value = camera.position.z;
+  // layar kecil -> titik ikut mengecil, supaya proporsi bintang vs bunga tetap sama
+  const galaxyPx = Math.min(0.9 * h, 0.94 * w);
+  shared.uPixelRatio.value = DPR * THREE.MathUtils.clamp(galaxyPx / 650, 0.55, 1);
+  shared.uAspect.value = aspect;
+  shared.uField.value.set(2 * TAN * camera.position.z * aspect, 2 * TAN * camera.position.z);
+  renderer.setSize(w, h);
+  composer.setSize(w, h);
+}
+addEventListener('resize', resize);
+resize();
+
+/* ---------- interaksi ---------- */
+// rotasi trackball: geser ke arah mana pun -> objek berputar ke arah itu
+const rot = { pressed: false, lx: 0, ly: 0, lt: 0, target: new THREE.Quaternion(), vel: new THREE.Vector2(),
+              returning: false, lastInteract: -1e9 };
+const dq = new THREE.Quaternion(), axis = new THREE.Vector3();
+// parallax pasif 3D: kursor (desktop) atau kemiringan HP (gyro) memiringkan lapisan bintang secara halus
+const parallax = { tx: 0, ty: 0, x: 0, y: 0, gBaseB: null, gBaseG: null };
+if (!reduceMotion && 'DeviceOrientationEvent' in window) {
+  addEventListener('deviceorientation', (e) => {
+    if (e.beta == null || e.gamma == null) return;
+    if (parallax.gBaseB == null) { parallax.gBaseB = e.beta; parallax.gBaseG = e.gamma; }
+    parallax.tx = THREE.MathUtils.clamp((e.gamma - parallax.gBaseG) / 26, -1, 1);
+    parallax.ty = THREE.MathUtils.clamp(-(e.beta - parallax.gBaseB) / 26, -1, 1);
+  }, { passive: true });
+}
+function turn(dx, dy) {
+  const ang = Math.hypot(dx, dy) * 0.0075;
+  if (ang < 1e-7) return;
+  axis.set(dy, dx, 0).normalize();
+  rot.target.premultiply(dq.setFromAxisAngle(axis, ang));
+}
+const sim = { has: false, latest: new THREE.Vector2(), prev: new THREE.Vector2(), speed: 0 };
+let simHits = 0;           // jumlah bintang tersapu per frame (memicu denting lonceng)
+const SETTLE_EPS = 1e-4;   // di bawah ini (≈0,05 px) bintang dianggap sudah kembali ke tempatnya
+let hover = false, touching = false;
+const toNdc = (e) => new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight * 2 - 1));
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  Object.assign(rot, { pressed: true, lx: e.clientX, ly: e.clientY, lt: performance.now(), returning: false });
+  rot.vel.set(0, 0);
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* beberapa in-app browser menolak capture */ }
+  canvas.classList.add('dragging');
+  document.body.classList.add('touched');
+  if (e.pointerType === 'touch') { touching = true; shared.uLensPointer.value.copy(toNdc(e)); }
+});
+canvas.addEventListener('pointermove', (e) => {
+  const n = toNdc(e);
+  hover = e.pointerType !== 'touch';
+  if (hover && !reduceMotion) { parallax.tx = n.x; parallax.ty = n.y; }
+  shared.uLensPointer.value.copy(n);
+  if (rot.pressed) {
+    const now = performance.now(), dx = e.clientX - rot.lx, dy = e.clientY - rot.ly, dt = Math.max((now - rot.lt) / 1000, 1 / 240);
+    turn(dx, dy);
+    rot.vel.lerp(new THREE.Vector2(dx / dt, dy / dt), 0.35);
+    Object.assign(rot, { lx: e.clientX, ly: e.clientY, lt: now, lastInteract: now });
+    if (e.pointerType !== 'touch') { sim.has = false; return; }   // mouse: tahan = putar, tidak mengacak
+  }
+  if (!sim.has) { sim.latest.copy(n); sim.prev.copy(n); sim.has = true; sim.speed = 0; } else sim.latest.copy(n);
+});
+const release = () => {
+  touching = false;
+  if (!rot.pressed) return;
+  rot.pressed = false; rot.lastInteract = performance.now();
+  if (performance.now() - rot.lt > 80) rot.vel.set(0, 0);           // berhenti sebelum dilepas = tanpa inersia
+  canvas.classList.remove('dragging'); sim.has = false;
+};
+canvas.addEventListener('pointerup', release);
+canvas.addEventListener('pointercancel', release);
+canvas.addEventListener('pointerleave', () => { hover = false; touching = false; sim.has = false; parallax.tx = 0; parallax.ty = 0; });
+
+/* simulasi momentum per bintang (dalam ruang layar):
+   offset'   = -returnSpeed * offset + velocity   -> kembali pelan ke tempatnya
+   velocity' = -drag * velocity                   -> bintang berat melambat lebih cepat
+   dorongan  = arah gerak kursor, bobot (1 - smoothstep(0, r, jarak))^2 */
+const M = new THREE.Matrix4(), projView = new THREE.Matrix4(), P = [0, 0, 0];
+// versi CPU dari writeProgress() / namePoint() / heartPoint() / swirlMix() di shader
+const writeP = (L, i, v, seed) => {
+  const st = Math.min(Math.max((L.aName[i * 4] - nameSpan.x) / nameSpan.y, 0), 1) * .46 + seed * .12;
+  return ease(st, st + .42, v);
+};
+function swirlMixCPU(a, b, t, seed, zAmp, spinAmp, out) {
+  const arc = Math.sin(t * Math.PI);
+  let px = a[0] + (b[0] - a[0]) * t, py = a[1] + (b[1] - a[1]) * t;
+  const ang = arc * spinAmp * (0.55 + 0.65 * fract(seed * 3.71));
+  const cs = Math.cos(ang), sn = Math.sin(ang), sc = 1 + arc * 0.11;
+  out[0] = (cs * px - sn * py) * sc;
+  out[1] = (sn * px + cs * py) * sc;
+  out[2] = a[2] + (b[2] - a[2]) * t + arc * (seed - 0.5) * zAmp;
+}
+let simT = 0;
+function namePointCPU(L, i, seed, out) {
+  const t = simT, k = i * 4, nx = L.aName[k];
+  const nk = Math.min(Math.max((nx - nameSpan.x) / nameSpan.y, 0), 1);
+  const waveZ = Math.sin(nk * 5.0 - t * 0.85) * 0.22 + Math.cos(nk * 2.8 + t * 0.55) * 0.09;
+  const waveY = Math.sin(nk * 4.2 - t * 0.72) * 0.055;
+  const dust = L.aName[k + 3] > 0.5;
+  out[0] = nx + (dust ? Math.cos(t * 0.48 + seed * 29) * 0.13 : Math.sin(t * 0.7 + seed * 40) * 0.02);
+  out[1] = L.aName[k + 1] + waveY + (dust ? Math.sin(t * 0.42 + seed * 23) * 0.15 : Math.cos(t * 0.55 + seed * 31) * 0.02);
+  out[2] = L.aName[k + 2] + waveZ + (dust ? Math.cos(t * 0.36 + seed * 17) * 0.14 : Math.sin(t * 0.45 + seed * 19) * 0.02);
+}
+function heartPointCPU(L, i, seed, out) {
+  const t = simT, k = i * 4, w = L.aHeart[k + 3], isRim = w > 0.001;
+  let bx, by, bz;
+  if (isRim) {
+    const u = L.aHeart[k] + t * w * 0.075, su = Math.sin(u), cu = Math.cos(u);
+    const c2 = 2 * cu * cu - 1, c3 = cu * (2 * c2 - 1), c4 = 2 * c2 * c2 - 1;
+    const scK = L.aHeart[k + 1] * HEART_S;
+    bx = 16 * su * su * su * scK;
+    by = (13 * cu - 5 * c2 - 2 * c3 - c4 + 2.4) * scK + 0.1;
+    bz = L.aHeart[k + 2];
+  } else {
+    bx = L.aHeart[k]; by = L.aHeart[k + 1]; bz = L.aHeart[k + 2];
+  }
+  const rDist = Math.hypot(bx, by) * 0.26;
+  const hp = fract(t * 0.72 - rDist * 0.055);
+  const beat = Math.exp(-(((hp - .12) * 15) ** 2)) + .55 * Math.exp(-(((hp - .31) * 15) ** 2));
+  const sc = 1 + shared.uBeatAmp.value * beat;
+  const dr = isRim ? 0.012 : 0.024;
+  const ember = isRim ? 0 : smooth(0.935, 0.96, seed);
+  out[0] = bx * sc + Math.sin(t * .6 + seed * 23) * dr + Math.sin(t * .45 + seed * 37) * .16 * ember;
+  out[1] = by * sc + Math.cos(t * .5 + seed * 17) * dr + (fract(seed * 13.7 + t * .05) - .35) * .45 * ember;
+  out[2] = bz * sc + Math.sin(t * .4 + seed * 11) * dr + Math.cos(t * .38 + seed * 29) * .14 * ember;
+}
+function layerPos(L, i, morph, out) {
+  const C = L.C, s = C.aSeed[i], nm = shared.uNameMix.value, wi = shared.uWriteIn.value;
+  const mOrg = ease(s * .35, s * .35 + .65, morph);
+  let m = mOrg;
+  if (L.kind !== 'AMBIENT') m += (writeP(L, i, morph, s) - mOrg) * (nm * wi);
+  if (L.kind === 'ARM') {
+    const flow = L.mat.uniforms.uFlow.value, ph = fract(L.aOrbit[i] + flow);
+    pathPointCPU(L.SA, warp(ph), L.aAcross[i], L.aDepth[i], out);
+    if (morph > 0) {
+      heartPointCPU(L, i, s, _c);
+      if (nm > 0) {
+        const s2 = fract(s * 7.13), hnOrg = ease(s2 * .35, s2 * .35 + .65, nm);
+        const hn = hnOrg + (writeP(L, i, nm, s2) - hnOrg) * wi;
+        namePointCPU(L, i, s, _d);
+        swirlMixCPU(_c, _d, hn, s2, 1.6, 0.52, _c);
+      }
+      swirlMixCPU(out, _c, m, s, 2.2, 0.68, out);
+    }
+  } else if (L.kind === 'CORE') {
+    const p = L.points.geometry.attributes.position.array, k = i * 3;
+    const s2 = fract(s * 7.13), hnOrg = ease(s2 * .35, s2 * .35 + .65, nm);
+    const hn = hnOrg + (writeP(L, i, nm, s2) - hnOrg) * wi;
+    namePointCPU(L, i, s, _d); heartPointCPU(L, i, s, _c);
+    swirlMixCPU(_c, _d, hn, s2, 1.5, 0.52, _c);
+    _d[0] = p[k]; _d[1] = p[k + 1]; _d[2] = p[k + 2];
+    swirlMixCPU(_d, _c, m, s, 1.5, 0.68, out);
+  } else {
+    const r = L.aRand, k = i * 3, z = -5 + 6.8 * r[k + 2], f = (shared.uCamDist.value - z) / shared.uCamDist.value * 1.06;
+    const t = simT, phx = r[k] * 6.2831 + r[k + 1] * 2.7, phy = r[k + 1] * 6.2831 + r[k + 2] * 3.1;
+    const sp = .4 + .4 * r[k + 2], am = .035 + .085 * r[k + 2];
+    out[0] = (r[k] - .5) * shared.uField.value.x * f + (Math.sin(phx + t * sp) - Math.sin(phx)) * am;
+    out[1] = (r[k + 1] - .5) * shared.uField.value.y * f + (Math.cos(phy + t * sp * .73) - Math.cos(phy)) * am;
+    out[2] = z;
+  }
+}
+function stepSim(dt) {
+  const aspect = innerWidth / innerHeight, cfg = CONFIG.cursor;
+  let hasImp = false, ix = 0, iy = 0, sx = 0, sy = 0, gx = 0, gy = 0, len2 = 1;
+  if (sim.has && sim.latest.distanceToSquared(sim.prev) > 1e-9) {
+    hasImp = true;
+    ix = (sim.latest.x - sim.prev.x) * aspect; iy = sim.latest.y - sim.prev.y;
+    const il = Math.hypot(ix, iy), im = cfg.impulseMax;
+    // kecepatan kursor (dihaluskan antar-frame): lewat pelan = usikan lembut, sapuan cepat = menyebar penuh
+    sim.speed += (il / Math.max(dt, 1 / 120) - sim.speed) * 0.35;
+    const gain = cfg.slowGain + (1 - cfg.slowGain) * smooth(0.25, 2.0, sim.speed);
+    if (il > im) { ix *= im / il; iy *= im / il; }
+    ix *= gain; iy *= gain;
+    sx = sim.prev.x * aspect; sy = sim.prev.y;
+    gx = (sim.latest.x - sim.prev.x) * aspect; gy = sim.latest.y - sim.prev.y;
+    len2 = Math.max(gx * gx + gy * gy, 1e-6);
+  }
+  if (sim.has) sim.prev.copy(sim.latest);
+  if (!hasImp && !layers.some((L) => L.awake)) return;        // semua tenang -> tidak ada kerja & upload
+
+  simT = shared.uTime.value;
+  const radius = Math.max(cfg.radiusPx / innerHeight, 0.025), radius2 = radius * radius;
+  const k = cfg.returnSpeed, e1 = Math.exp(-k * dt), morph = shared.uMorph.value;
+  projView.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+
+  for (const L of layers) {
+    if (!hasImp && !L.awake) continue;
+    const { motion, vel, drag, vary, n, C } = L, wasAwake = L.awake;
+    const e = M.multiplyMatrices(projView, L.points.matrixWorld).elements;
+    let moving = false;
+    for (let i = 0; i < n; i++) {
+      const j = i * 2;
+      if (hasImp) {
+        layerPos(L, i, morph, P);
+        const cw = e[3] * P[0] + e[7] * P[1] + e[11] * P[2] + e[15];
+        if (cw > 0.01) {
+          // jarak diukur dari posisi ASAL bintang (bukan posisi yang sedang terdorong): bintang hanya didorong
+          // selama kursor melewati tempatnya -> tidak ada efek "bajak salju" yang membuat lubang besar
+          const cx = (e[0] * P[0] + e[4] * P[1] + e[8] * P[2] + e[12]) / cw * aspect;
+          const cy = (e[1] * P[0] + e[5] * P[1] + e[9] * P[2] + e[13]) / cw;
+          const t = Math.min(Math.max(((cx - sx) * gx + (cy - sy) * gy) / len2, 0), 1);
+          const rx = cx - sx - gx * t, ry = cy - sy - gy * t, d2 = rx * rx + ry * ry;
+          if (d2 < radius2) {
+            simHits++;
+            const w = (1 - smooth(0, radius, Math.sqrt(d2))) ** 2 * cfg.strength * vary[i] / C.mass[i];
+            // curl: dorong sedikit menjauhi jalur kursor (seperti air yang terbelah)
+            const side = gx * ry - gy * rx >= 0 ? 1 : -1;
+            const px = ix - iy * side * cfg.curl, py = iy + ix * side * cfg.curl;
+            vel[j] += px / aspect * w; vel[j + 1] += py * w;
+            const sp = Math.hypot(vel[j] * aspect, vel[j + 1]);
+            if (sp > cfg.maxSpeed) { vel[j] *= cfg.maxSpeed / sp; vel[j + 1] *= cfg.maxSpeed / sp; }
+          }
+        }
+      }
+      const d = drag[i], e2 = Math.exp(-d * dt), f = (e1 - e2) / (d - k);
+      motion[j] = motion[j] * e1 + vel[j] * f;
+      motion[j + 1] = motion[j + 1] * e1 + vel[j + 1] * f;
+      vel[j] *= e2; vel[j + 1] *= e2;
+      if (!moving && (Math.abs(motion[j]) > SETTLE_EPS || Math.abs(motion[j + 1]) > SETTLE_EPS
+        || Math.abs(vel[j]) > SETTLE_EPS || Math.abs(vel[j + 1]) > SETTLE_EPS)) moving = true;
+    }
+    if (!moving) { motion.fill(0); vel.fill(0); }             // sisa < 1e-4 (tak terlihat) -> kunci di nol
+    L.awake = moving;
+    if (moving || wasAwake) L.motionAttr.needsUpdate = true;  // upload hanya kalau ada yang berubah
+  }
+}
+
+/* ---------- detail personal ---------- */
+const bodyCls = document.body.classList;
+const setCls = (name, on) => { if (bodyCls.contains(name) !== on) bodyCls.toggle(name, on); };
+
+// warna nama bisa diganti langsung: warna tiap bintang bergeser halus ke palet baru (~0,9 dtk)
+const swWrap = document.getElementById('swatches'), swLabel = document.getElementById('swLabel');
+const swButtons = NAME_PAL_KEYS.map((key) => {
+  const pal = CONFIG.namePalettes[key], b = document.createElement('button');
+  b.className = 'sw';
+  b.style.setProperty('--a', pal[0]); b.style.setProperty('--b', pal[3] || pal[1]);
+  b.setAttribute('aria-label', `Warna ${key}`); b.title = key;
+  b.addEventListener('click', () => setNamePalette(key));
+  swWrap.append(b);
+  return { key, b };
+});
+let palTween = null;
+function setNamePalette(key, instant = false) {
+  if (!CONFIG.namePalettes[key]) return;
+  namePalKey = key;
+  const pal = CONFIG.namePalettes[key].map((c) => new THREE.Color(c)), tmp = new THREE.Color();
+  const items = layers.map((L) => {
+    const a = L.C.aColorC, idx = L.C.cIdx, to = new Float32Array(a.length);
+    for (let i = 0; i < L.n; i++) {
+      tmp.copy(pal[idx[i]]);
+      if (L.kind === 'AMBIENT') tmp.setRGB(1, 1, 1).lerp(pal[idx[i]], .55);   // langit: versi pucat
+      tmp.toArray(to, i * 3);
+    }
+    return { L, from: a.slice(), to };
+  });
+  palTween = { t: instant ? 1 : 0, items };
+  updatePaletteTween(0);
+  for (const s of swButtons) s.b.setAttribute('aria-pressed', String(s.key === key));
+  swLabel.textContent = key;
+  document.documentElement.style.setProperty('--name-accent', CONFIG.namePalettes[key][0]);
+  try { localStorage.setItem(PAL_STORE, key); } catch (_) { /* mode privat: tidak diingat, tidak apa-apa */ }
+}
+function updatePaletteTween(dt) {
+  if (!palTween) return;
+  palTween.t = Math.min(1, palTween.t + dt / 0.9);
+  const k = smooth(0, 1, palTween.t);
+  for (const { L, from, to } of palTween.items) {
+    const a = L.C.aColorC;
+    for (let j = 0; j < a.length; j++) a[j] = from[j] + (to[j] - from[j]) * k;
+    L.points.geometry.attributes.aColorC.needsUpdate = true;
+  }
+  if (palTween.t >= 1) palTween = null;
+}
+setNamePalette(namePalKey, true);
+
+// pesan hati: dua baris bertumpuk, berganti dengan cross-fade pelan
+const msgState = { idx: 0, cur: 0, t: 0 };
+function resetHeartMessages() {
+  Object.assign(msgState, { idx: 0, cur: 0, t: -2 });              // pesan pertama tampil sedikit lebih lama
+  msgLines[0].textContent = CONFIG.heartMessages[0] || '';
+  msgLines[0].classList.add('on'); msgLines[1].classList.remove('on');
+}
+function updateHeartMessages(dt) {
+  const list = CONFIG.heartMessages;
+  if (shape !== 'heart' || shared.uMorph.value < 1 || list.length < 2) return;
+  if ((msgState.t += dt) < CONFIG.heartMessageEvery) return;
+  msgState.t = 0;
+  msgState.idx = (msgState.idx + 1) % list.length;
+  const next = msgLines[1 - msgState.cur];
+  next.textContent = list[msgState.idx];
+  next.classList.add('on'); msgLines[msgState.cur].classList.remove('on');
+  msgState.cur = 1 - msgState.cur;
+}
+
+// tanda tangan: diletakkan tepat di bawah tulisan nama (dihitung dari proyeksi kamera)
+const _sv = new THREE.Vector3();
+function placeSig() {
+  camera.updateMatrixWorld();
+  _sv.set(0, nameBottomY - 0.45, 0).project(camera);
+  document.documentElement.style.setProperty('--sigY', ((1 - _sv.y) / 2 * innerHeight).toFixed(1) + 'px');
+}
+addEventListener('resize', () => { sigDirty = true; });
+
+// 5 bintang kenangan = bintang paling terang di tiap lengan galaxy
+const memWrap = document.getElementById('memories'), memBox = document.getElementById('mem');
+const memDate = memBox.querySelector('.mem-date'), memIdx = memBox.querySelector('.mem-idx'), memText = memBox.querySelector('.mem-text');
+const memList = CONFIG.memories.slice(0, spinners.filter((L) => L.kind === 'ARM').length);
+const memStars = memList.map((m, i) => {
+  const b = document.createElement('button');
+  b.className = 'memstar';
+  b.style.setProperty('--d', `${(i * 0.83).toFixed(2)}s`);
+  b.setAttribute('aria-label', `Kenangan ${i + 1}: ${m.date}`);
+  b.addEventListener('click', (e) => { e.stopPropagation(); memOpen === i ? closeMemory() : openMemory(i); });
+  memWrap.append(b);
+  return { b, L: layers.filter((L) => L.kind === 'ARM')[i], x: -100, y: -100, vis: 0 };
+});
+let memOpen = -1, memTimer = 0;
+function openMemory(i) {
+  const m = memList[i], s = memStars[i];
+  memOpen = i;
+  memDate.textContent = m.date;
+  memIdx.textContent = `${i + 1} / ${memList.length}`;
+  memText.textContent = m.text;
+  memBox.classList.add('on'); setCls('memopen', true); s.b.classList.add('seen');
+  for (const delay of [0, 0.32]) {                                     // dua riak lembut
+    const r = document.createElement('span');
+    r.className = 'ripple';
+    r.style.left = `${s.x}px`; r.style.top = `${s.y}px`;               // left/top: transform dipakai animasinya
+    r.style.animationDelay = `${delay}s`;
+    memWrap.append(r);
+    r.addEventListener('animationend', () => r.remove());
+  }
+  clearTimeout(memTimer);
+  memTimer = setTimeout(closeMemory, 6000);
+}
+function closeMemory() {
+  if (memOpen < 0) return;
+  memOpen = -1; clearTimeout(memTimer);
+  memBox.classList.remove('on'); setCls('memopen', false);
+}
+// ketuk di mana saja (selain bintang kenangan) -> kenangan memudar
+document.addEventListener('pointerdown', (e) => { if (memOpen >= 0 && !e.target.closest('.memstar')) closeMemory(); }, true);
+
+const memPV = new THREE.Matrix4(), memM = new THREE.Matrix4(), memP = [0, 0, 0];
+function updateMemoryStars() {
+  const morph = shared.uMorph.value;
+  const show = memList.length > 0 && shared.uIntro.value >= 1 && morph < 0.02;
+  setCls('memvis', show);
+  if (!show && memOpen >= 0) closeMemory();
+  if (morph > 0.3 || !memList.length) return;                         // sudah tak terlihat -> tidak perlu dihitung
+  memPV.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  const W = innerWidth, H = innerHeight;
+  for (const s of memStars) {
+    const L = s.L, i = L.bestI;
+    layerPos(L, i, morph, memP);
+    const e = memM.multiplyMatrices(memPV, L.points.matrixWorld).elements;
+    const cw = e[3] * memP[0] + e[7] * memP[1] + e[11] * memP[2] + e[15];
+    // ikut memudar di ujung lengan seperti bintangnya (endVis di shader)
+    const p = warp(fract(L.aOrbit[i] + L.mat.uniforms.uFlow.value));
+    const vis = cw > 0.01 ? smooth(0, 0.055, p) * (1 - smooth(0.945, 1, p)) : 0;
+    if (vis > 0) {
+      const nx = (e[0] * memP[0] + e[4] * memP[1] + e[8] * memP[2] + e[12]) / cw + L.motion[i * 2];
+      const ny = (e[1] * memP[0] + e[5] * memP[1] + e[9] * memP[2] + e[13]) / cw + L.motion[i * 2 + 1];
+      s.x = (nx + 1) / 2 * W; s.y = (1 - ny) / 2 * H;
+      s.b.style.transform = `translate3d(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px, 0)`;
+    }
+    if (Math.abs(vis - s.vis) > 0.02) { s.vis = vis; s.b.style.opacity = vis.toFixed(2); s.b.style.visibility = vis < 0.25 ? 'hidden' : ''; }
+  }
+}
+
+// bintang jatuh rahasia: ketuk dua kali / klik dua kali di langit
+const shootMat = new THREE.ShaderMaterial({
+  uniforms: { uHead: { value: new THREE.Vector3() }, uTail: { value: new THREE.Vector3() }, uWidth: { value: 0.07 },
+              uAlpha: { value: 0 }, uColor: { value: new THREE.Color('#FFF4E0') } },
+  // pita tipis yang selalu menghadap kamera, meruncing ke ekor
+  vertexShader: `uniform vec3 uHead, uTail; uniform float uWidth; varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      vec4 h = viewMatrix * vec4(uHead, 1.0), t = viewMatrix * vec4(uTail, 1.0);
+      vec4 p = mix(h, t, uv.x);
+      vec2 d = h.xy - t.xy; d = length(d) > 1e-5 ? normalize(d) : vec2(1.0, 0.0);
+      p.xy += vec2(-d.y, d.x) * (uv.y - 0.5) * uWidth * mix(1.0, 0.18, uv.x);
+      gl_Position = projectionMatrix * p;
+    }`,
+  fragmentShader: `uniform float uAlpha; uniform vec3 uColor; varying vec2 vUv;
+    void main() {
+      float across = exp(-pow((vUv.y - 0.5) * 4.6, 2.0));
+      float tail = pow(1.0 - vUv.x, 2.6);          // ekor gradasi halus
+      float head = exp(-vUv.x * 60.0);             // kepala kecil yang terang
+      gl_FragColor = vec4(uColor * (tail * 0.7 + head * 1.8) * across * uAlpha * 1.5, 1.0);
+    }`,
+  transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide,   // arah pita bisa terbalik -> jangan di-cull
+  blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+});
+const shootMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1, 32, 1), shootMat);
+shootMesh.frustumCulled = false; shootMesh.visible = false; shootMesh.renderOrder = 5;
+scene.add(shootMesh);
+const shoot = { t: -1, dur: 1.25, from: new THREE.Vector3(), dir: new THREE.Vector3(), dist: 0 };
+function launchShootingStar(ndc) {
+  const a = 0.35 + Math.random() * 0.3, sgn = Math.random() < 0.5 ? -1 : 1;
+  shoot.dir.set(sgn * Math.cos(a), -Math.sin(a), -0.15 - Math.random() * 0.25).normalize();
+  shoot.dist = 7.5 + Math.random() * 3;
+  // lintasannya melewati titik yang diketuk
+  shoot.from.set(ndc.x * shared.uField.value.x / 2, ndc.y * shared.uField.value.y / 2, 1.2)
+    .addScaledVector(shoot.dir, -shoot.dist * 0.42);
+  shoot.t = 0; shootMesh.visible = true;
+}
+function updateShootingStar(dt) {
+  if (shoot.t < 0) return;
+  const k = (shoot.t += dt) / shoot.dur;
+  if (k >= 1) { shoot.t = -1; shootMesh.visible = false; shootMat.uniforms.uAlpha.value = 0; return; }
+  const u = shootMat.uniforms, travel = 1 - Math.pow(1 - k, 2.2);
+  u.uHead.value.copy(shoot.from).addScaledVector(shoot.dir, shoot.dist * travel);
+  const len = 2.6 * Math.min(1, k * 3.2) * (1 - 0.45 * k);
+  u.uTail.value.copy(u.uHead.value).addScaledVector(shoot.dir, -len);
+  u.uAlpha.value = smooth(0, 0.07, k) * (1 - smooth(0.55, 1, k));
+}
+let tapStart = null, lastTap = null;
+canvas.addEventListener('pointerdown', (e) => { tapStart = { t: performance.now(), x: e.clientX, y: e.clientY }; });
+canvas.addEventListener('pointerup', (e) => {
+  if (!tapStart) return;
+  const now = performance.now();
+  const isTap = now - tapStart.t < 300 && Math.hypot(e.clientX - tapStart.x, e.clientY - tapStart.y) < 12;
+  tapStart = null;
+  if (!isTap) { lastTap = null; return; }
+  if (lastTap && now - lastTap.t < 380 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 48) {
+    lastTap = null; launchShootingStar(toNdc(e));
+  } else lastTap = { t: now, x: e.clientX, y: e.clientY };
+});
+
+/* ---------- suara: lagu (opsional) + lonceng prosedural ---------- */
+const MUSIC_SRC = (DEBUG && PARAMS.get('audio')) || CONFIG.audioSrc;
+const snd = (() => {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const st = { ctx: null, master: null, chimeBus: null, music: null, musicGain: null, analyser: null, bins: null,
+    direct: false, hasMusic: false, wasPlaying: false, muted: false, lastChime: -1e9, note: 2,
+    bass: 0, mid: 0, bassAvg: 0, midAvg: 0, bassPeak: 1e-3, midPeak: 1e-3 };
+  // C mayor pentatonis, oktaf tinggi (seperti celesta)
+  const PENTA = [1046.5, 1174.66, 1318.51, 1567.98, 1760.0, 2093.0, 2349.32];
+
+  function start() {
+    if (!AC || st.ctx) return;
+    try {
+      const ctx = st.ctx = new AC();
+      st.master = ctx.createGain(); st.master.gain.value = st.muted ? 0 : 1; st.master.connect(ctx.destination);
+      // bus lonceng: lowpass + gema (delay berumpan-balik yang makin redup) -> lembut seperti angin malam
+      const bus = st.chimeBus = ctx.createGain();
+      const tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 5200;
+      const dly = ctx.createDelay(1.5); dly.delayTime.value = 0.37;
+      const fb = ctx.createGain(); fb.gain.value = 0.4;
+      const damp = ctx.createBiquadFilter(); damp.type = 'lowpass'; damp.frequency.value = 2300;
+      const wet = ctx.createGain(); wet.gain.value = 0.55;
+      bus.connect(tone); tone.connect(st.master); tone.connect(dly);
+      dly.connect(damp); damp.connect(fb); fb.connect(dly); damp.connect(wet); wet.connect(st.master);
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      loadMusic();
+    } catch (e) { st.ctx = null; }
+  }
+
+  function loadMusic() {
+    if (!MUSIC_SRC) return;
+    const a = st.music = new Audio();
+    a.loop = true; a.preload = 'auto'; a.setAttribute('playsinline', '');
+    // dibuka sebagai file:// -> Web Audio akan membisukan lagunya (aturan keamanan), jadi diputar langsung tanpa analyser
+    st.direct = location.protocol === 'file:';
+    if (st.direct) a.volume = 0;
+    else {
+      const node = st.ctx.createMediaElementSource(a);
+      const an = st.analyser = st.ctx.createAnalyser();
+      an.fftSize = 1024; an.smoothingTimeConstant = 0.8;
+      st.bins = new Uint8Array(an.frequencyBinCount);
+      st.musicGain = st.ctx.createGain(); st.musicGain.gain.value = 0;
+      node.connect(an); an.connect(st.musicGain); st.musicGain.connect(st.master);
+    }
+    a.addEventListener('error', () => { st.hasMusic = false; }, { once: true });     // file tidak ada -> diam saja
+    a.addEventListener('playing', () => {
+      st.hasMusic = true;
+      if (!st.direct) {                                                               // fade-in 3 detik
+        const g = st.musicGain.gain, t = st.ctx.currentTime;
+        g.cancelScheduledValues(t); g.setValueAtTime(0, t); g.linearRampToValueAtTime(CONFIG.audioVolume, t + 3);
+      }
+    }, { once: true });
+    a.src = MUSIC_SRC;
+    const p = a.play(); if (p) p.catch(() => {});
+  }
+
+  function setMuted(m) {
+    st.muted = m;
+    if (!st.ctx) return;
+    const g = st.master.gain, t = st.ctx.currentTime;
+    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.setTargetAtTime(m ? 0 : 1, t, 0.25);   // fade, bukan putus
+  }
+
+  // energi bass & mid, dihaluskan (naik cepat, turun pelan) dan dibandingkan dengan rata-rata lagu itu sendiri
+  function band(lo, hi) {
+    const hz = st.ctx.sampleRate / st.analyser.fftSize, b = st.bins;
+    let sum = 0, n = 0;
+    for (let i = Math.max(1, Math.floor(lo / hz)); i <= Math.min(b.length - 1, Math.ceil(hi / hz)); i++) { sum += b[i]; n++; }
+    return n ? sum / (n * 255) : 0;
+  }
+  function update(dt) {
+    if (st.direct && st.music) {                                                    // file:// : fade lewat volume elemen
+      const target = st.muted ? 0 : CONFIG.audioVolume, v = st.music.volume;
+      st.music.volume = target > v ? Math.min(target, v + dt * CONFIG.audioVolume / 3) : Math.max(target, v - dt * 1.6);
+    }
+    let b = 0, m = 0;
+    if (st.analyser && st.hasMusic && !st.music.paused) { st.analyser.getByteFrequencyData(st.bins); b = band(30, 160); m = band(300, 2200); }
+    const up = 1 - Math.exp(-dt * 14), down = 1 - Math.exp(-dt * 3);
+    st.bass += (b - st.bass) * (b > st.bass ? up : down);
+    st.mid += (m - st.mid) * (m > st.mid ? up : down);
+    const slow = 1 - Math.exp(-dt * 0.5), fall = Math.exp(-dt * 0.12);
+    st.bassAvg += (st.bass - st.bassAvg) * slow; st.midAvg += (st.mid - st.midAvg) * slow;
+    st.bassPeak = Math.max(st.bass, st.bassPeak * fall); st.midPeak = Math.max(st.mid, st.midPeak * fall);
+  }
+  const rel = (v, avg, pk) => Math.max(-1, Math.min(1, (v - avg) / Math.max(pk - avg, 0.02)));
+
+  // lonceng: beberapa sinus dengan rasio tak harmonis + peluruhan panjang
+  function bell(freq, when, gain) {
+    const ctx = st.ctx, t = ctx.currentTime + when;
+    const out = ctx.createGain();
+    out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(gain, t + 0.015);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + 4.5);
+    out.connect(st.chimeBus);
+    for (const [r, a, d] of [[1, 1, 4.5], [2.76, 0.3, 1.8], [5.4, 0.1, 0.8], [8.93, 0.04, 0.4]]) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = freq * r;
+      g.gain.setValueAtTime(a, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + d + 0.05);
+    }
+  }
+  function nextNote() {                                   // melangkah dekat (melodis), tidak mengulang nada yang sama
+    const step = [-2, -1, 1, 2][Math.floor(Math.random() * 4)];
+    st.note = Math.min(PENTA.length - 1, Math.max(0, st.note + step));
+    return PENTA[st.note];
+  }
+  function chime(kind) {
+    if (!st.ctx || st.muted || !CONFIG.chime) return;
+    const now = st.ctx.currentTime;
+    if (kind === 'sweep') {
+      if (now - st.lastChime < 1.4) return;               // berjarak: paling sering ~1x per 1,4 detik
+      st.lastChime = now;
+      bell(nextNote(), 0, 0.03 + Math.random() * 0.012);
+    } else {                                              // ganti bentuk: dua nada naik, pelan
+      if (now - st.lastChime < 0.4) return;
+      st.lastChime = now;
+      const a = nextNote();
+      bell(a, 0, 0.04);
+      bell(PENTA[Math.min(PENTA.length - 1, st.note + 2)], 0.26, 0.03);
+    }
+  }
+  return {
+    supported: !!AC, start, setMuted, update, chime,
+    get muted() { return st.muted; }, get started() { return !!st.ctx; }, get hasMusic() { return st.hasMusic; },
+    breath: () => st.hasMusic ? rel(0.6 * st.mid + 0.4 * st.bass, 0.6 * st.midAvg + 0.4 * st.bassAvg, 0.6 * st.midPeak + 0.4 * st.bassPeak) : 0,
+    bass: () => st.hasMusic ? rel(st.bass, st.bassAvg, st.bassPeak) : 0,
+    suspend() { if (!st.ctx) return; st.wasPlaying = !!st.music && !st.music.paused; st.music?.pause(); st.ctx.suspend?.().catch(() => {}); },
+    resume() { if (!st.ctx) return; st.ctx.resume?.().catch(() => {}); if (st.wasPlaying) st.music.play()?.catch(() => {}); },
+    _st: st,
+  };
+})();
+
+// galaxy bernapas mengikuti lagu (±12% kecerahan); di mode hati, bass mengatur dalamnya denyut
+const coreLayer = layers.find((L) => L.kind === 'CORE');
+const BASE_INTENSITY = shared.uIntensity.value, CORE_INTENSITY = coreLayer.mat.uniforms.uIntensity.value;
+const SWEEP_CHIME = 260;     // makin kecil = lonceng makin mudah berbunyi saat menyapu bintang
+let sweepAcc = 0, heartBass = 0;
+function updateSound(dt) {
+  snd.update(dt);
+  const morph = smooth(0, 1, shared.uMorph.value);
+  const f = 1 + 0.12 * snd.breath() * (1 - morph);
+  shared.uIntensity.value = BASE_INTENSITY * f;
+  coreLayer.mat.uniforms.uIntensity.value = CORE_INTENSITY * f;
+  // dihaluskan ~0,7 dtk: dalamnya denyut mengikuti suasana bagian lagu (pelan/ramai), bukan tiap ketukan
+  heartBass += (snd.bass() - heartBass) * (1 - Math.exp(-dt * 1.4));
+  shared.uBeatAmp.value = 0.032 * (1 + 0.6 * heartBass * morph * (1 - shared.uNameMix.value));
+  sweepAcc = sweepAcc * Math.exp(-dt * 1.6) + simHits;
+  if (sweepAcc > SWEEP_CHIME) { sweepAcc = 0; snd.chime('sweep'); }
+}
+
+// tirai pembuka
+const veilEl = document.getElementById('veil');
+let started = !USE_VEIL;
+function begin() {
+  if (started) return;
+  started = true;
+  setCls('started', true);
+  veilEl.classList.add('gone');
+  setTimeout(() => veilEl.remove(), 1400);
+  if (reduceMotion) shared.uIntro.value = 1;
+  snd.start();
+}
+if (USE_VEIL) {
+  const vt = document.getElementById('veilText');
+  vt.textContent = CONFIG.veil.text || ''; vt.hidden = !CONFIG.veil.text;
+  const vb = document.getElementById('veilBtn');
+  vb.textContent = CONFIG.veil.button || 'Nyalakan';
+  vb.addEventListener('click', begin);
+  addEventListener('keydown', (e) => { if (!started && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); begin(); } });
+} else {
+  veilEl.remove(); setCls('started', true);
+  addEventListener('pointerdown', () => snd.start(), { once: true });   // tanpa tirai: suara mulai di sentuhan pertama
+}
+const bSound = document.getElementById('bSound');
+if (snd.supported) {
+  bSound.hidden = false;
+  bSound.addEventListener('click', () => {
+    snd.start();
+    const m = !snd.muted;
+    snd.setMuted(m);
+    bSound.textContent = m ? '✕' : '♪';
+    bSound.setAttribute('aria-pressed', String(m));
+    bSound.setAttribute('aria-label', m ? 'Nyalakan suara' : 'Matikan suara');
+  });
+}
+
+/* ---------- tombol ---------- */
+const SHAPE_BUTTONS = { galaxy: document.getElementById('bSpiral'), heart: document.getElementById('bHeart'), name: document.getElementById('bName') };
+let morphTarget = shared.uMorph.value, nameTarget = shared.uNameMix.value, writeTarget = shared.uWriteIn.value, shape = CONFIG.startShape;
+let unnameTimer = 0;
+function setShape(next) {
+  if (next !== 'galaxy') ensureHeart();
+  if (shape === 'name' && next !== 'name') {               // tunda teks pinggir sampai tulisan bintang bubar
+    document.body.classList.add('unname');
+    clearTimeout(unnameTimer);
+    unnameTimer = setTimeout(() => document.body.classList.remove('unname'), 1500);
+  } else if (next === 'name') { clearTimeout(unnameTimer); document.body.classList.remove('unname'); }
+  if (next === 'heart' && shape !== 'heart') resetHeartMessages();
+  if (next !== 'galaxy') closeMemory();
+  if (next !== shape) {
+    snd.chime('shape');
+    // kembalikan rotasi drag pelan ke pose tegak saat ganti bentuk -> hati & nama selalu simetris
+    rot.vel.set(0, 0);
+    if (rot.target.angleTo(dq.identity()) > 1e-3) { rot.target.identity(); rot.returning = true; }
+  }
+  shape = next;
+  morphTarget = next === 'galaxy' ? 0 : 1;
+  if (next !== 'galaxy') nameTarget = next === 'name' ? 1 : 0;
+  // masuk ke Nama -> ditulis kiri-ke-kanan; keluar dari Nama -> buyar organik seperti debu tertiup angin
+  writeTarget = next === 'name' ? 1 : 0;
+  const settled = (shared.uMorph.value <= 0.001 || shared.uMorph.value >= 0.999)
+    && (shared.uNameMix.value <= 0.001 || shared.uNameMix.value >= 0.999);
+  if (settled) shared.uWriteIn.value = writeTarget;
+  for (const [k, b] of Object.entries(SHAPE_BUTTONS)) b.setAttribute('aria-pressed', String(k === next));
+  document.body.classList.toggle('heart', next === 'heart');
+  document.body.classList.toggle('name', next === 'name');
+}
+for (const [k, b] of Object.entries(SHAPE_BUTTONS)) b.onclick = () => setShape(k);
+document.getElementById('bReset').onclick = () => { rot.vel.set(0, 0); rot.lastInteract = -1e9; };
+addEventListener('keydown', (e) => {
+  const order = ['galaxy', 'heart', 'name'];
+  if (e.key === 'h' || e.key === 'H') setShape(order[(order.indexOf(shape) + 1) % 3]);
+});
+setShape(CONFIG.startShape);
+
+// target warna atmosfer langit tiap bentuk (gelap pekat & bersih tanpa kabut berlebih)
+const BG_EDGE = { flower: new THREE.Color('#0f0c1a'), heart: new THREE.Color('#140911'), base: new THREE.Color('#090b14') };
+const _bgEdgeT = new THREE.Color(), _palAccent = new THREE.Color();
+
+/* ---------- loop ---------- */
+const clock = new THREE.Clock();
+const baseQ = new THREE.Quaternion(), euler = new THREE.Euler();
+let introT = 0, autoSpin = 0;
+const TRANSITION_S = 3.4;   // lama transisi antar bentuk (detik)
+let rafId = 0, paused = document.hidden, glLost = false;
+function schedule() { if (!rafId && !paused && !glLost) rafId = requestAnimationFrame(frame); }
+function stopLoop() { cancelAnimationFrame(rafId); rafId = 0; }
+// tab/aplikasi di latar belakang -> berhenti total (hemat baterai); saat kembali, delta waktu direset
+document.addEventListener('visibilitychange', () => {
+  paused = document.hidden;
+  if (paused) { stopLoop(); snd.suspend(); } else { clock.getDelta(); schedule(); snd.resume(); }
+});
+// konteks WebGL hilang (sering di HP saat memori penuh / pindah aplikasi): tunggu dipulihkan, lalu lanjut
+canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); glLost = true; stopLoop(); });
+canvas.addEventListener('webglcontextrestored', () => {
+  glLost = false;
+  for (const L of layers) for (const a of Object.values(L.points.geometry.attributes)) a.needsUpdate = true;
+  resize(); clock.getDelta(); schedule();
+});
+
+function frame() {
+  rafId = 0;
+  const dt = Math.min(clock.getDelta(), 1 / 20), t = clock.elapsedTime, now = performance.now();
+  shared.uTime.value = t;
+
+  shared.uDawn.value = Math.min(1, shared.uDawn.value + dt / 2.2);
+  if (started && shared.uIntro.value < 1) { introT += dt; shared.uIntro.value = Math.min(introT / 5.5, 1); }
+  if (shared.uIntro.value > 0.55) document.body.classList.add('ready');
+
+  const mv = shared.uMorph.value;
+  shared.uMorph.value = mv + Math.sign(morphTarget - mv) * Math.min(Math.abs(morphTarget - mv), dt / TRANSITION_S);
+  // hati <-> nama berpindah langsung; dari bunga, bentuk tujuan dipilih sebelum morph terlihat (cek mv sebelum naik)
+  const nv = shared.uNameMix.value;
+  shared.uNameMix.value = mv < 0.001 ? nameTarget
+    : nv + Math.sign(nameTarget - nv) * Math.min(Math.abs(nameTarget - nv), dt / TRANSITION_S);
+  // kalau tombol diklik di tengah transisi, uWriteIn bergeser mulus tanpa lompatan
+  shared.uWriteIn.value += (writeTarget - shared.uWriteIn.value) * (1 - Math.exp(-4.5 * dt));
+
+  // kamera bernapas mundur halus di tengah transisi, lalu kembali mendekat saat bentuk baru mendarat
+  const midTrans = Math.max(Math.sin(shared.uMorph.value * Math.PI), Math.sin(shared.uNameMix.value * Math.PI) * shared.uMorph.value);
+  camBreath += (midTrans - camBreath) * (1 - Math.exp(-4.5 * dt));
+  const camZ = baseCamZ * (1 + 0.055 * camBreath);
+  if (Math.abs(camZ - camera.position.z) > 1e-4) {
+    camera.position.z = camZ;
+    shared.uCamDist.value = camZ;
+    shared.uField.value.set(2 * TAN * camZ * shared.uAspect.value, 2 * TAN * camZ);
+  }
+
+  // atmosfer langit ikut berubah halus sesuai mode & palet warna nama (tetap obsidian pekat & natural)
+  const mEase = ease(0, 1, shared.uMorph.value), keep = 1 - mEase, nEase = ease(0, 1, shared.uNameMix.value);
+  _palAccent.set(CONFIG.namePalettes[namePalKey][0]);
+  _bgEdgeT.copy(BG_EDGE.base).lerp(_palAccent, 0.005);
+  _bgEdgeT.lerpColors(BG_EDGE.heart, _bgEdgeT, nEase);
+  _bgEdgeT.lerpColors(BG_EDGE.flower, _bgEdgeT, mEase);
+  bgMat.uniforms.uEdge.value.lerp(_bgEdgeT, 1 - Math.exp(-2.2 * dt));
+
+  // inersia setelah dilepas, lalu kembali pelan ke pose awal kalau didiamkan
+  if (!rot.pressed && rot.vel.lengthSq() > 1) {
+    turn(rot.vel.x * dt, rot.vel.y * dt);
+    rot.vel.multiplyScalar(Math.exp(-4.2 * dt));
+    rot.lastInteract = now;
+  }
+  if (!rot.pressed && !rot.returning && now - rot.lastInteract > 4500 && rot.target.angleTo(baseQ.identity()) > 1e-3) {
+    rot.target.identity(); rot.returning = true;
+  }
+
+  // parallax pasif 3D yang sangat lembut mengikuti kursor / kemiringan HP
+  const pStep = 1 - Math.exp(-3.2 * dt);
+  parallax.x += (parallax.tx - parallax.x) * pStep;
+  parallax.y += (parallax.ty - parallax.y) * pStep;
+
+  const sway = reduceMotion ? 0 : 1;
+  autoSpin = reduceMotion ? 0 : Math.atan2(Math.sin(autoSpin + dt * 0.018), Math.cos(autoSpin + dt * 0.018));
+  // hati & nama selalu tegak simetris (tanpa roll miring), dengan ayunan 3D halus & parallax tipis
+  const heartW = mEase * (1 - nEase), nameW = mEase * nEase;
+  const pAmp = 0.075 * keep + 0.036 * heartW + 0.045 * nameW;
+  const pitchSway = (0.08 * keep + 0.042 * heartW + 0.045 * nameW) * Math.sin(0.24 * t) * sway;
+  const yawSway = (0.14 * keep + 0.095 * heartW + 0.08 * nameW) * Math.cos(0.30 * t) * sway;
+  baseQ.setFromEuler(euler.set(
+    -0.28 * keep + pitchSway - parallax.y * pAmp * sway,
+    yawSway + parallax.x * pAmp * 1.15 * sway,
+    autoSpin * keep
+  ));
+  const base = rot.returning ? 5.5 : 14;
+  for (const L of spinners) {
+    L.q.slerp(rot.target, 1 - Math.exp(-(base / (1 + L.lag * 0.68 * 2.5)) * dt));   // tiap lapisan telat berbeda -> efek 3D berlapis
+    L.points.quaternion.multiplyQuaternions(L.q, baseQ);
+    if (L.kind === 'ARM' && !reduceMotion) L.mat.uniforms.uFlow.value = fract(L.mat.uniforms.uFlow.value + L.A.flow * 0.45 * dt);
+  }
+  if (rot.returning && spinners.every((L) => L.q.angleTo(rot.target) < 1e-3)) rot.returning = false;
+
+  // lensa cahaya: ikut kursor di desktop, ikut jari (lebih halus) selama layar disentuh di HP
+  const lensTarget = hover && !rot.pressed ? 1 : touching ? 0.7 : 0;
+  shared.uLensActive.value += (lensTarget - shared.uLensActive.value) * (1 - Math.exp(-6 * dt));
+
+  scene.updateMatrixWorld(); camera.updateMatrixWorld();
+  simT = t;
+  simHits = 0;
+  stepSim(dt);
+  updateSound(dt);
+  updateMemoryStars();
+  updateShootingStar(dt);
+  updateHeartMessages(dt);
+  updatePaletteTween(dt);
+  if (sigDirty) { sigDirty = false; placeSig(); }
+  setCls('signed', !!CONFIG.nameSignature && shape === 'name' && shared.uMorph.value >= 1 && shared.uNameMix.value >= 1);
+  composer.render(dt);
+  schedule();
+}
+schedule();
+if (new URLSearchParams(location.search).has('debug')) window.__astra = { shared, layers, rot, bloom, renderer, composer, get heartMs() { return heartMs; }, frameBufferType, heartGrid, buildHeart, shoot, shootMat, launchShootingStar, msgState, get shape() { return shape; }, setNamePalette, snd, begin, get sweepAcc() { return sweepAcc; } };
+</script>
+</body>
+</html>
